@@ -28,13 +28,13 @@ export interface McpToolResult<TOutput> {
  * Canonical MCP Tool Contract (§14, §17).
  * All tools must declare exact semver versioning and typed Zod schemas.
  */
-export interface McpTool<TInput = unknown, TOutput = unknown> {
+export interface McpTool<TInput = any, TOutput = any> {
   readonly name: string;
   readonly version: string; // e.g. "1.0.0"
   readonly description: string;
   readonly permission: PermissionLevel;
-  readonly inputSchema: z.ZodType<TInput>;
-  readonly outputSchema: z.ZodType<TOutput>;
+  readonly inputSchema: z.ZodType<TInput, any, any>;
+  readonly outputSchema: z.ZodType<TOutput, any, any>;
 
   execute(input: TInput, context: ToolExecutionContext): Promise<McpToolResult<TOutput>>;
 }
