@@ -28,7 +28,10 @@ All commits must target feature branches and merge via Pull Requests into `main`
 | `feat/repo-foundation` | Monorepo root & docs | PRD, AGENTS.md, Handoff ledger, initial tooling structure | ~100 lines/commit | Merged / Initial | User |
 | `feat/monorepo-tooling` | Root monorepo | `turbo.json`, `pnpm-workspace.yaml`, `tsconfig.base.json`, scaffold | ~30-40 lines/commit | PR Ready | User |
 | `feat/agent-core-schemas` | `packages/agent-core` | Zod runtime contracts (`AgentEnvelope`, `Finding`, `Evidence`, tests) | ~40-90 lines/commit | PR Ready | User |
-| `feat/mcp-server-base` | `packages/mcp-server`, `packages/git` | MCP server runtime, tool contracts, git tools | ~80-100 lines/commit | Queued (Agent 1) | User |
+| `feat/mcp-server-base` | `packages/mcp-server`, `packages/git` | MCP server runtime, tool contracts, git tools (`git.status`, `git.log`) | ~40-100 lines/commit | PR Ready | User |
+| `feat/config-debt-engine` | `packages/config-engine`, `rules/*` | Deterministic debt engine and rules (`CD001`, `CD003`, `CD101`, `CD105`) | ~60-95 lines/commit | PR Ready | User |
+| `feat/verification-engine` | `packages/verifier` | Sandbox patch application and multi-stage verification pipeline runner | ~35-100 lines/commit | PR Ready | User |
+| `feat/orchestrator-runtime` | `packages/orchestrator`, `agents/*`, `packages/trajectory` | Orchestrator state machine, trajectory logging, specialized agents | ~50-110 lines/commit | PR Ready | User |
 
 ---
 
