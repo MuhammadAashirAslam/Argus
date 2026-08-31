@@ -25,9 +25,10 @@ All commits must target feature branches and merge via Pull Requests into `main`
 
 | PR # / Branch | Scope | Description | Commits Size | Status | Reviewer |
 |---|---|---|---|---|---|
-| `feat/repo-foundation` | Monorepo root & docs | PRD, AGENTS.md, Handoff ledger, initial tooling structure | ~100 lines/commit | Ready | User |
-| `feat/agent-core-schemas` | `packages/agent-core` | Zod runtime contracts (`AgentEnvelope`, `Finding`, `Evidence`) | ~100 lines/commit | Queued | User |
-| `feat/turborepo-scaffold` | Root monorepo | `turbo.json`, `pnpm-workspace.yaml`, `tsconfig.base.json` | ~100 lines/commit | Queued | User |
+| `feat/repo-foundation` | Monorepo root & docs | PRD, AGENTS.md, Handoff ledger, initial tooling structure | ~100 lines/commit | Merged / Initial | User |
+| `feat/monorepo-tooling` | Root monorepo | `turbo.json`, `pnpm-workspace.yaml`, `tsconfig.base.json`, scaffold | ~30-40 lines/commit | PR Ready | User |
+| `feat/agent-core-schemas` | `packages/agent-core` | Zod runtime contracts (`AgentEnvelope`, `Finding`, `Evidence`, tests) | ~40-90 lines/commit | PR Ready | User |
+| `feat/mcp-server-base` | `packages/mcp-server`, `packages/git` | MCP server runtime, tool contracts, git tools | ~80-100 lines/commit | Queued (Agent 1) | User |
 
 ---
 
