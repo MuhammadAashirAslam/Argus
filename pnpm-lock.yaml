@@ -137,9 +137,27 @@ importers:
 
   apps/cli:
     dependencies:
+      '@argus/agent-analyzer':
+        specifier: workspace:^
+        version: link:../../agents/analyzer
+      '@argus/agent-configuration':
+        specifier: workspace:^
+        version: link:../../agents/configuration
       '@argus/agent-core':
         specifier: workspace:*
         version: link:../../packages/agent-core
+      '@argus/agent-historian':
+        specifier: workspace:^
+        version: link:../../agents/historian
+      '@argus/agent-investigator':
+        specifier: workspace:^
+        version: link:../../agents/investigator
+      '@argus/agent-patch':
+        specifier: workspace:^
+        version: link:../../agents/patch
+      '@argus/agent-verifier':
+        specifier: workspace:^
+        version: link:../../agents/verifier
       '@argus/config-engine':
         specifier: workspace:*
         version: link:../../packages/config-engine
