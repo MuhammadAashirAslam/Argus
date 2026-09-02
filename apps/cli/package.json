@@ -1,0 +1,28 @@
+{
+  "name": "@argus/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Developer CLI for ARGUS multi-agent analysis, config scan, and patch verification",
+  "main": "./dist/index.js",
+  "bin": {
+    "argus": "./dist/bin.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "eslint src/"
+  },
+  "dependencies": {
+    "@argus/agent-core": "workspace:*",
+    "@argus/orchestrator": "workspace:*",
+    "@argus/config-engine": "workspace:*",
+    "@argus/rules": "workspace:*",
+    "@argus/verifier": "workspace:*",
+    "@argus/trajectory": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
