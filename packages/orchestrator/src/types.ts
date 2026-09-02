@@ -12,9 +12,9 @@ export interface OrchestratorBudget {
 
 export interface OrchestratorConfig {
   repository: string;
-  pullRequest?: number;
+  pullRequest?: number | undefined;
   objective: string;
-  budget?: Partial<OrchestratorBudget>;
+  budget?: Partial<OrchestratorBudget> | undefined;
 }
 
 export interface IOrchestrator {

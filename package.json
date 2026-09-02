@@ -10,7 +10,11 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "format": "prettier --write \"**/*.{ts,tsx,js,mjs,json,md,yml,yaml}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,js,mjs,json,md,yml,yaml}\""
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,mjs,json,md,yml,yaml}\"",
+    "argus": "node apps/cli/dist/bin.js"
+  },
+  "bin": {
+    "argus": "./apps/cli/dist/bin.js"
   },
   "devDependencies": {
     "@types/node": "^22.10.1",
