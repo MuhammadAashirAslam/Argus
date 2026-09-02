@@ -1,8 +1,8 @@
 {
-  "name": "@argus/verifier",
+  "name": "@argus/sandbox",
   "version": "0.1.0",
   "type": "module",
-  "description": "Deterministic patch verification and multi-stage sandbox test runner for ARGUS",
+  "description": "Docker container lifecycle and isolated sandbox execution environment for ARGUS verification",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -18,9 +18,7 @@
     "lint": "eslint src/"
   },
   "dependencies": {
-    "@argus/agent-core": "workspace:*",
-    "@argus/sandbox": "workspace:*",
-    "zod": "^3.24.1"
+    "@argus/agent-core": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.7.2",

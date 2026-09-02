@@ -13,6 +13,9 @@ export interface VerificationPipelineOptions {
   runTests?: boolean;
   testCommand?: string;
   lintCommand?: string;
+  useSandbox?: boolean;
+  sandboxImage?: string;
+  dockerPath?: string;
 }
 
 export interface IVerifierService {
