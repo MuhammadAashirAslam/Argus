@@ -1,8 +1,7 @@
 {
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
-    "outDir": "./dist",
-    "noEmit": true
+    "outDir": "./dist"
   },
   "include": ["github-actions/**/*", "docker/**/*", "index.ts"],
   "exclude": ["node_modules", "dist"]
