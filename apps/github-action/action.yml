@@ -1,0 +1,25 @@
+name: "ARGUS PR Review & Reliability Analysis"
+description: "MCP-Native AI Agent Analysis for Configuration Debt, Pull Requests, and Verification"
+author: "ARGUS Team"
+
+inputs:
+  mode:
+    description: "Operating mode (review, analyze, or verify)"
+    required: false
+    default: "review"
+  github_token:
+    description: "GitHub Token for posting reviews"
+    required: true
+    default: "${{ github.token }}"
+  strict_verification:
+    description: "Require zero verification failures"
+    required: false
+    default: "true"
+
+runs:
+  using: "node20"
+  main: "dist/index.js"
+
+branding:
+  icon: "shield"
+  color: "blue"
