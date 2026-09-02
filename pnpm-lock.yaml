@@ -211,6 +211,12 @@ importers:
       '@argus/orchestrator':
         specifier: workspace:*
         version: link:../packages/orchestrator
+      '@argus/rules':
+        specifier: workspace:*
+        version: link:../rules
+      '@argus/shared':
+        specifier: workspace:*
+        version: link:../packages/shared
       '@argus/verifier':
         specifier: workspace:*
         version: link:../packages/verifier
