@@ -13,7 +13,7 @@ export const CD004_DuplicatedWorkflowLogic: DebtRule = {
     const runBlocks = new Map<string, number>();
 
     context.lines.forEach((line, index) => {
-      const match = line.match(/^\s*run:\s*(.+)$/);
+      const match = line.match(/^\s*(?:-\s*)?run:\s*(.+)$/);
       if (match) {
         const cmd = (match[1] ?? "").trim();
         if (cmd.length > 20) {
