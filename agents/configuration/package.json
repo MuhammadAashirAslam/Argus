@@ -1,0 +1,27 @@
+{
+  "name": "@argus/agent-configuration",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Configuration specialized agent for CI/CD workflow and Dockerfile debt analysis",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/"
+  },
+  "dependencies": {
+    "@argus/agent-core": "workspace:*",
+    "@argus/config-engine": "workspace:*",
+    "@argus/rules": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

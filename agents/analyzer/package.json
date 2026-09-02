@@ -1,0 +1,25 @@
+{
+  "name": "@argus/agent-analyzer",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Analyzer specialized agent for root-cause synthesis and hypothesis generation",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/"
+  },
+  "dependencies": {
+    "@argus/agent-core": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}
