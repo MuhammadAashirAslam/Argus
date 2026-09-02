@@ -75,11 +75,7 @@ export class LLMClient {
     this.defaultModel = options.defaultModel ?? GROQ_MODELS.FAST;
     this.maxRetries = options.maxRetries ?? 3;
 
-    if (!this.apiKey) {
-      throw new Error(
-        "GROQ_API_KEY is not set. Put it in .env.local or set it as an environment variable.",
-      );
-    }
+    // API key check is deferred to chat() to allow instantiation in test environments
   }
 
   /**
@@ -97,6 +93,13 @@ export class LLMClient {
       toolChoice?: any;
     } = {},
   ): Promise<LLMResponse> {
+    const apiKey = this.apiKey || process.env["GROQ_API_KEY"];
+    if (!apiKey) {
+      throw new Error(
+        "GROQ_API_KEY is not set. Put it in .env.local or set it as an environment variable.",
+      );
+    }
+
     const model = options.model ?? this.defaultModel;
     const body: Record<string, unknown> = {
       model,
@@ -121,7 +124,7 @@ export class LLMClient {
         const res = await fetch(`${this.baseUrl}/chat/completions`, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${this.apiKey}`,
+            Authorization: `Bearer ${apiKey}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify(body),

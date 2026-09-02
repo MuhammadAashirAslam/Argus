@@ -14,12 +14,18 @@
     "lint": "eslint src/"
   },
   "dependencies": {
+    "@argus/agent-analyzer": "workspace:^",
+    "@argus/agent-configuration": "workspace:^",
     "@argus/agent-core": "workspace:*",
-    "@argus/orchestrator": "workspace:*",
+    "@argus/agent-historian": "workspace:^",
+    "@argus/agent-investigator": "workspace:^",
+    "@argus/agent-patch": "workspace:^",
+    "@argus/agent-verifier": "workspace:^",
     "@argus/config-engine": "workspace:*",
+    "@argus/orchestrator": "workspace:*",
     "@argus/rules": "workspace:*",
-    "@argus/verifier": "workspace:*",
-    "@argus/trajectory": "workspace:*"
+    "@argus/trajectory": "workspace:*",
+    "@argus/verifier": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.7.2",

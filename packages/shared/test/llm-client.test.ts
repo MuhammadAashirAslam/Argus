@@ -23,10 +23,11 @@ describe("LLMClient", () => {
     expect(client.getUsageStats().totalTokens).toBe(15);
   });
 
-  it("should throw if no API key is provided and none in env", () => {
+  it("should throw if no API key is provided and none in env", async () => {
     const originalEnv = process.env["GROQ_API_KEY"];
     delete process.env["GROQ_API_KEY"];
-    expect(() => new LLMClient()).toThrow(/GROQ_API_KEY is not set/);
+    const client = new LLMClient();
+    await expect(client.prompt("hello")).rejects.toThrow(/GROQ_API_KEY is not set/);
     if (originalEnv) {
       process.env["GROQ_API_KEY"] = originalEnv;
     }
