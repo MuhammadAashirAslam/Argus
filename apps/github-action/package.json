@@ -1,0 +1,21 @@
+{
+  "name": "@argus/github-action",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Reusable GitHub Action for automated PR investigation and review",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/"
+  },
+  "dependencies": {
+    "@argus/agent-core": "workspace:*",
+    "@argus/orchestrator": "workspace:*",
+    "@argus/github": "workspace:*",
+    "@argus/config-engine": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}
