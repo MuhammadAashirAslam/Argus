@@ -1,28 +1,121 @@
 import { randomUUID } from "node:crypto";
-import type { ArgusAgent, AgentEnvelope, AgentContext } from "@argus/agent-core";
+import type { ArgusAgent, AgentEnvelope, AgentContext, Finding, Evidence } from "@argus/agent-core";
+import { LLMClient, executeLLMWithTools, type LLMMessage } from "@argus/shared";
+import { 
+  GitStatusTool, 
+  GitLogTool,
+  RepoReadFileInputSchema,
+  RepoListFilesTool,
+  RepoSearchTool,
+  RepoGetDependenciesTool,
+  RepoReadFileTool
+} from "@argus/git";
+import {
+  GetPullRequestTool,
+  GetPullRequestFilesTool,
+  GetIssuesTool,
+  GetCommentsTool
+} from "@argus/github";
 
 export class InvestigatorAgent implements ArgusAgent {
   public readonly id = "agent-investigator-01";
   public readonly role = "INVESTIGATOR";
+  private readonly llm = new LLMClient();
 
   public async run(input: AgentEnvelope, context: AgentContext): Promise<AgentEnvelope> {
     context.logger.info(`[${this.role}] Starting investigation for run ${context.runId}`);
+    
+    const objective = (input.payload as any)?.objective ?? "unknown";
+    const pullRequest = (input.payload as any)?.pullRequest;
 
-    return {
-      version: "1.0",
-      envelopeId: randomUUID(),
-      agentId: this.id,
-      agentRole: "INVESTIGATOR",
-      runId: context.runId,
-      timestamp: new Date().toISOString(),
-      payloadType: "INVESTIGATION_RESULT",
-      payload: {
-        problem_summary: `Investigated objective: ${(input.payload as any)?.objective ?? "unknown"}`,
-        relevant_files: ["package.json", ".github/workflows/ci.yml"],
-        evidence: [],
-        investigation_complete: true,
-      },
-      errors: [],
-    };
+    const systemPrompt = `You are the ARGUS Investigator Agent.
+Your objective is to explore the repository, identify the relevant files for the current task, and collect concrete evidence.
+Use the provided tools to search the codebase, read files, and inspect git/github history.
+You must gather facts. Once you have enough context, you MUST respond with a JSON object in the exact format:
+{
+  "problem_summary": "Summary of what you found",
+  "relevant_files": ["path/to/file1.ts"],
+  "findings": [
+    {
+      "id": "uuid-here",
+      "statement": "Fact found",
+      "classification": "FACT",
+      "evidenceIds": []
+    }
+  ],
+  "evidence": [],
+  "investigation_complete": true
+}
+Do not return any conversational text, ONLY the final JSON object when you are done.
+`;
+
+    const messages: LLMMessage[] = [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: `Objective: ${objective}\nPR Number: ${pullRequest || 'N/A'}` },
+    ];
+
+    const tools = [
+      GitStatusTool,
+      GitLogTool,
+      RepoListFilesTool,
+      RepoSearchTool,
+      RepoReadFileTool,
+      RepoGetDependenciesTool,
+      GetPullRequestTool,
+      GetPullRequestFilesTool,
+      GetIssuesTool,
+      GetCommentsTool
+    ];
+
+    try {
+      const response = await executeLLMWithTools(messages, {
+        client: this.llm,
+        model: "llama-3.3-70b-versatile", // Use the large model for complex reasoning and tool use
+        tools,
+        context: {
+          workspacePath: context.repository,
+          runId: context.runId,
+          agentId: this.id,
+        },
+        maxIterations: 15,
+      });
+
+      // The response.content should contain the final JSON. We extract it.
+      const content = response.content.trim();
+      const jsonStart = content.indexOf("{");
+      const jsonEnd = content.lastIndexOf("}");
+      
+      let payload;
+      if (jsonStart !== -1 && jsonEnd !== -1) {
+        payload = JSON.parse(content.substring(jsonStart, jsonEnd + 1));
+      } else {
+        payload = JSON.parse(content);
+      }
+
+      return {
+        version: "1.0",
+        envelopeId: randomUUID(),
+        agentId: this.id,
+        agentRole: "INVESTIGATOR",
+        runId: context.runId,
+        timestamp: new Date().toISOString(),
+        payloadType: "INVESTIGATION_RESULT",
+        payload,
+        errors: [],
+      };
+    } catch (err: any) {
+      context.logger.error(`Investigation failed: ${err.message}`);
+      return {
+        version: "1.0",
+        envelopeId: randomUUID(),
+        agentId: this.id,
+        agentRole: "INVESTIGATOR",
+        runId: context.runId,
+        timestamp: new Date().toISOString(),
+        payloadType: "ERROR",
+        payload: null,
+        errors: [{ code: "REASONING_FAILURE", message: err.message || String(err), fatal: true }],
+      };
+    }
   }
 }

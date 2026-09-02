@@ -4,8 +4,10 @@ import { loadEnvFile } from "./env.js";
 // ── Schemas ────────────────────────────────────────────────
 
 export const LLMMessageSchema = z.object({
-  role: z.enum(["system", "user", "assistant"]),
-  content: z.string(),
+  role: z.enum(["system", "user", "assistant", "tool"]),
+  content: z.string().nullable().optional(),
+  tool_calls: z.array(z.any()).optional(),
+  tool_call_id: z.string().optional(),
 });
 
 export const LLMRequestSchema = z.object({
@@ -14,6 +16,8 @@ export const LLMRequestSchema = z.object({
   temperature: z.number().min(0).max(2).default(0.2),
   max_tokens: z.number().int().positive().default(4096),
   response_format: z.object({ type: z.enum(["text", "json_object"]) }).optional(),
+  tools: z.array(z.any()).optional(),
+  tool_choice: z.any().optional(),
 });
 
 export const LLMUsageSchema = z.object({
@@ -32,6 +36,7 @@ export interface LLMResponse {
   model: string;
   durationMs: number;
   finishReason: string;
+  toolCalls?: any[];
 }
 
 // ── Models ─────────────────────────────────────────────────
@@ -88,6 +93,8 @@ export class LLMClient {
       temperature?: number | undefined;
       maxTokens?: number | undefined;
       jsonMode?: boolean | undefined;
+      tools?: any[];
+      toolChoice?: any;
     } = {},
   ): Promise<LLMResponse> {
     const model = options.model ?? this.defaultModel;
@@ -99,6 +106,12 @@ export class LLMClient {
     };
     if (options.jsonMode) {
       body["response_format"] = { type: "json_object" };
+    }
+    if (options.tools && options.tools.length > 0) {
+      body["tools"] = options.tools;
+      if (options.toolChoice) {
+        body["tool_choice"] = options.toolChoice;
+      }
     }
 
     let lastError: Error | null = null;
@@ -144,6 +157,7 @@ export class LLMClient {
           model,
           durationMs,
           finishReason: choice?.finish_reason ?? "unknown",
+          toolCalls: choice?.message?.tool_calls,
         };
       } catch (err: any) {
         lastError = err;

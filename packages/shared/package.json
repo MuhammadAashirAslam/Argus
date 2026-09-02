@@ -19,7 +19,9 @@
   },
   "dependencies": {
     "@argus/agent-core": "workspace:^",
-    "zod": "^3.24.1"
+    "@argus/mcp-server": "workspace:^",
+    "zod": "^3.24.1",
+    "zod-to-json-schema": "^3.25.2"
   },
   "devDependencies": {
     "typescript": "^5.7.2",
