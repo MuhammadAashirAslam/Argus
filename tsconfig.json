@@ -3,6 +3,10 @@
   "compilerOptions": {
     "noEmit": true
   },
-  "include": [],
-  "references": []
+  "include": [
+    "packages/*/src/**/*",
+    "packages/*/test/**/*",
+    "rules/**/*",
+    "agents/*/src/**/*"
+  ]
 }

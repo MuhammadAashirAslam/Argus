@@ -1,0 +1,34 @@
+{
+  "name": "@argus/rules",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Deterministic debt rules for GitHub Actions and Dockerfiles in ARGUS",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./github-actions": {
+      "import": "./dist/github-actions/index.js",
+      "types": "./dist/github-actions/index.d.ts"
+    },
+    "./docker": {
+      "import": "./dist/docker/index.js",
+      "types": "./dist/docker/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/"
+  },
+  "dependencies": {
+    "@argus/agent-core": "workspace:*",
+    "@argus/config-engine": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}
