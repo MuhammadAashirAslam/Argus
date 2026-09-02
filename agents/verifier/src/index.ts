@@ -12,7 +12,7 @@ export class VerifierAgent implements ArgusAgent {
 
     const runner = new VerificationRunner();
     const result = await runner.runPipeline(patch, {
-      workspacePath: context.workspacePath,
+      workspacePath: context.repository,
       timeoutMs: 30000,
     });
 

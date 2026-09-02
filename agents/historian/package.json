@@ -18,7 +18,9 @@
   },
   "dependencies": {
     "@argus/agent-core": "workspace:*",
-    "@argus/git": "workspace:*"
+    "@argus/git": "workspace:*",
+    "@argus/github": "workspace:^",
+    "@argus/shared": "workspace:^"
   },
   "devDependencies": {
     "typescript": "^5.7.2"
