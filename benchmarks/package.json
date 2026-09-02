@@ -1,0 +1,31 @@
+{
+  "name": "@argus/benchmarks",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Benchmark evaluation dataset, Baseline A/B runners, and trial metrics collector for ARGUS",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "eslint src/"
+  },
+  "dependencies": {
+    "@argus/agent-core": "workspace:*",
+    "@argus/orchestrator": "workspace:*",
+    "@argus/verifier": "workspace:*",
+    "@argus/config-engine": "workspace:*",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
