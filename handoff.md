@@ -25,13 +25,17 @@ All commits must target feature branches and merge via Pull Requests into `main`
 
 | PR # / Branch | Scope | Description | Commits Size | Status | Reviewer |
 |---|---|---|---|---|---|
-| `feat/repo-foundation` | Monorepo root & docs | PRD, AGENTS.md, Handoff ledger, initial tooling structure | ~100 lines/commit | Merged / Initial | User |
-| `feat/monorepo-tooling` | Root monorepo | `turbo.json`, `pnpm-workspace.yaml`, `tsconfig.base.json`, scaffold | ~30-40 lines/commit | PR Ready | User |
-| `feat/agent-core-schemas` | `packages/agent-core` | Zod runtime contracts (`AgentEnvelope`, `Finding`, `Evidence`, tests) | ~40-90 lines/commit | PR Ready | User |
-| `feat/mcp-server-base` | `packages/mcp-server`, `packages/git` | MCP server runtime, tool contracts, git tools (`git.status`, `git.log`) | ~40-100 lines/commit | PR Ready | User |
-| `feat/config-debt-engine` | `packages/config-engine`, `rules/*` | Deterministic debt engine and rules (`CD001`, `CD003`, `CD101`, `CD105`) | ~60-95 lines/commit | PR Ready | User |
-| `feat/verification-engine` | `packages/verifier` | Sandbox patch application and multi-stage verification pipeline runner | ~35-100 lines/commit | PR Ready | User |
-| `feat/orchestrator-runtime` | `packages/orchestrator`, `agents/*`, `packages/trajectory` | Orchestrator state machine, trajectory logging, specialized agents | ~50-110 lines/commit | PR Ready | User |
+| `feat/repo-foundation` | Monorepo root & docs | PRD, AGENTS.md, Handoff ledger, initial tooling structure | ~100 lines/commit | Merged | User |
+| `feat/monorepo-tooling` | Root monorepo | `turbo.json`, `pnpm-workspace.yaml`, `tsconfig.base.json`, scaffold | ~30-40 lines/commit | Merged | User |
+| `feat/agent-core-schemas` | `packages/agent-core` | Zod runtime contracts (`AgentEnvelope`, `Finding`, `Evidence`, tests) | ~40-90 lines/commit | Merged | User |
+| `feat/mcp-server-base` | `packages/mcp-server`, `packages/git` | MCP server runtime, tool contracts, git tools (`git.status`, `git.log`) | ~40-100 lines/commit | Merged | User |
+| `feat/config-debt-engine` | `packages/config-engine`, `rules/*` | Deterministic debt engine base and initial rules (`CD001`, `CD003`, `CD101`, `CD105`) | ~60-95 lines/commit | Merged | User |
+| `feat/verification-engine` | `packages/verifier` | Sandbox patch application and multi-stage verification pipeline runner | ~35-100 lines/commit | Merged | User |
+| `feat/orchestrator-runtime` | `packages/orchestrator`, `agents/*`, `packages/trajectory` | Orchestrator state machine, trajectory logging, specialized agents | ~50-110 lines/commit | Merged | User |
+| `feat/complete-10-debt-rules` | `rules/*`, `packages/config-engine` | Complete all 10 PRD debt rules (`CD001`–`CD005`, `CD101`–`CD105`) & tests | ~50-90 lines/commit | PR Ready | User |
+| `feat/github-integration` | `packages/github`, `apps/github-action` | GitHub MCP read/write tools & reusable GitHub Action entrypoint | ~50-95 lines/commit | PR Ready | User |
+| `feat/developer-cli` | `apps/cli` | Developer CLI (`argus config scan`, `verify`, `analyze`, `trace`) | ~30-100 lines/commit | PR Ready | User |
+| `feat/benchmark-evaluations` | `benchmarks/` | 10 real-world benchmark cases, Baseline A/B runners & metrics harness | ~40-110 lines/commit | PR Ready | User |
 
 ---
 
