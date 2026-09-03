@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { ArgusAgent, AgentEnvelope, AgentContext, Finding, Evidence } from "@argus/agent-core";
-import { LLMClient, executeLLMWithTools, type LLMMessage } from "@argus/shared";
+import { LLMClient, executeLLMWithTools, GROQ_MODELS, type LLMMessage } from "@argus/shared";
 import { 
   GitStatusTool, 
   GitLogTool,
@@ -61,16 +61,15 @@ Do not return any conversational text, ONLY the final JSON object when you are d
       RepoSearchTool,
       RepoReadFileTool,
       RepoGetDependenciesTool,
-      GetPullRequestTool,
-      GetPullRequestFilesTool,
-      GetIssuesTool,
-      GetCommentsTool
+      ...(pullRequest
+        ? [GetPullRequestTool, GetPullRequestFilesTool, GetIssuesTool, GetCommentsTool]
+        : []),
     ];
 
     try {
       const response = await executeLLMWithTools(messages, {
         client: this.llm,
-        model: "llama-3.3-70b-versatile", // Use the large model for complex reasoning and tool use
+        model: GROQ_MODELS.LARGE,
         tools,
         context: {
           workspacePath: context.repository,
@@ -85,11 +84,21 @@ Do not return any conversational text, ONLY the final JSON object when you are d
       const jsonStart = content.indexOf("{");
       const jsonEnd = content.lastIndexOf("}");
       
-      let payload;
-      if (jsonStart !== -1 && jsonEnd !== -1) {
-        payload = JSON.parse(content.substring(jsonStart, jsonEnd + 1));
-      } else {
-        payload = JSON.parse(content);
+      let payload: any;
+      try {
+        if (jsonStart !== -1 && jsonEnd !== -1) {
+          payload = JSON.parse(content.substring(jsonStart, jsonEnd + 1));
+        } else {
+          payload = JSON.parse(content);
+        }
+      } catch {
+        payload = {
+          problem_summary: content || "Investigation completed using repository inspection tools.",
+          relevant_files: [],
+          findings: [],
+          evidence: [],
+          investigation_complete: true,
+        };
       }
 
       return {

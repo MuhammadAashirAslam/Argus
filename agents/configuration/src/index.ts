@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { ArgusAgent, AgentEnvelope, AgentContext, Finding } from "@argus/agent-core";
-import { LLMClient, executeLLMWithTools, type LLMMessage } from "@argus/shared";
+import { LLMClient, executeLLMWithTools, GROQ_MODELS, type LLMMessage } from "@argus/shared";
 import { createConfigTools } from "@argus/config-engine/tools.js";
 import { ConfigDebtEngine } from "@argus/config-engine";
 
@@ -42,7 +42,7 @@ Do not return any conversational text, ONLY the final JSON object when you are d
     try {
       const response = await executeLLMWithTools(messages, {
         client: this.llm,
-        model: "llama-3.1-8b-instant",
+        model: GROQ_MODELS.FAST,
         tools,
         context: {
           workspacePath: context.repository,

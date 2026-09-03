@@ -1,29 +1,30 @@
 import { z } from "zod";
 import { loadEnvFile } from "./env.js";
 
-// ── Schemas ────────────────────────────────────────────────
+// ── Canonical Schemas ────────────────────────────────────────
 
 export const LLMMessageSchema = z.object({
   role: z.enum(["system", "user", "assistant", "tool"]),
   content: z.string().nullable().optional(),
+  name: z.string().optional(),
   tool_calls: z.array(z.any()).optional(),
   tool_call_id: z.string().optional(),
 });
 
 export const LLMRequestSchema = z.object({
   model: z.string(),
-  messages: z.array(LLMMessageSchema).min(1),
-  temperature: z.number().min(0).max(2).default(0.2),
-  max_tokens: z.number().int().positive().default(4096),
+  messages: z.array(LLMMessageSchema),
+  temperature: z.number().min(0).max(2).optional().default(0.2),
+  max_tokens: z.number().positive().optional().default(4096),
   response_format: z.object({ type: z.enum(["text", "json_object"]) }).optional(),
   tools: z.array(z.any()).optional(),
   tool_choice: z.any().optional(),
 });
 
 export const LLMUsageSchema = z.object({
-  prompt_tokens: z.number().int().nonnegative(),
-  completion_tokens: z.number().int().nonnegative(),
-  total_tokens: z.number().int().nonnegative(),
+  prompt_tokens: z.number(),
+  completion_tokens: z.number(),
+  total_tokens: z.number(),
 });
 
 export type LLMMessage = z.infer<typeof LLMMessageSchema>;
@@ -42,11 +43,15 @@ export interface LLMResponse {
 // ── Models ─────────────────────────────────────────────────
 
 export const GROQ_MODELS = {
-  /** 70B — complex reasoning (Analyzer, Patch Agent) */
-  LARGE: "llama-3.3-70b-versatile",
-  /** 8B — fast tasks (Investigator, Historian, Configuration) */
-  FAST: "llama-3.1-8b-instant",
-} as const;
+  /** Fast / Instant reasoning (Investigator, Analyzer, Patch) */
+  get LARGE(): string {
+    return process.env["GROQ_LARGE_MODEL"] ?? process.env["GROQ_MODEL"] ?? "openai/gpt-oss-20b";
+  },
+  /** Fast tasks (Historian, Configuration) */
+  get FAST(): string {
+    return process.env["GROQ_FAST_MODEL"] ?? process.env["GROQ_MODEL"] ?? "openai/gpt-oss-20b";
+  },
+};
 
 // ── Client ─────────────────────────────────────────────────
 
@@ -69,18 +74,16 @@ export class LLMClient {
   public totalDurationMs = 0;
 
   constructor(options: LLMClientOptions = {}) {
-    loadEnvFile();
+    loadEnvFile(process.cwd());
     this.apiKey = options.apiKey ?? process.env["GROQ_API_KEY"] ?? "";
     this.baseUrl = options.baseUrl ?? "https://api.groq.com/openai/v1";
     this.defaultModel = options.defaultModel ?? GROQ_MODELS.FAST;
-    this.maxRetries = options.maxRetries ?? 3;
-
-    // API key check is deferred to chat() to allow instantiation in test environments
+    this.maxRetries = options.maxRetries ?? 5;
   }
 
   /**
    * Send a chat completion request to Groq.
-   * Retries on 429 (rate limit) and 5xx with exponential backoff.
+   * Retries on 429 (rate limit) and 5xx with smart backoff.
    */
   async chat(
     messages: LLMMessage[],
@@ -89,8 +92,8 @@ export class LLMClient {
       temperature?: number | undefined;
       maxTokens?: number | undefined;
       jsonMode?: boolean | undefined;
-      tools?: any[];
-      toolChoice?: any;
+      tools?: any[] | undefined;
+      toolChoice?: any | undefined;
     } = {},
   ): Promise<LLMResponse> {
     const apiKey = this.apiKey || process.env["GROQ_API_KEY"];
@@ -131,14 +134,25 @@ export class LLMClient {
         });
 
         if (res.status === 429 || res.status >= 500) {
-          const waitMs = Math.min(1000 * 2 ** attempt, 10000);
+          const errBody = await res.text();
+          lastError = new Error(`Groq API error ${res.status}: ${errBody}`);
+
+          // Parse retry time if provided (e.g. "Please try again in 3.3s")
+          let waitMs = Math.max(3000, 2000 * 2 ** attempt);
+          const match = errBody.match(/try again in ([\d.]+)s/i);
+          if (match && match[1]) {
+            const seconds = parseFloat(match[1]);
+            waitMs = Math.ceil(seconds * 1000) + 1000;
+          }
+
           await new Promise((r) => setTimeout(r, waitMs));
           continue;
         }
 
         if (!res.ok) {
           const errBody = await res.text();
-          throw new Error(`Groq API error ${res.status}: ${errBody}`);
+          lastError = new Error(`Groq API error ${res.status}: ${errBody}`);
+          throw lastError;
         }
 
         const json = (await res.json()) as any;
@@ -157,7 +171,7 @@ export class LLMClient {
         return {
           content: choice?.message?.content ?? "",
           usage,
-          model,
+          model: json.model ?? model,
           durationMs,
           finishReason: choice?.finish_reason ?? "unknown",
           toolCalls: choice?.message?.tool_calls,
@@ -165,49 +179,76 @@ export class LLMClient {
       } catch (err: any) {
         lastError = err;
         if (attempt < this.maxRetries - 1) {
-          const waitMs = Math.min(1000 * 2 ** attempt, 10000);
+          const waitMs = Math.min(2000 * 2 ** attempt, 8000);
           await new Promise((r) => setTimeout(r, waitMs));
         }
       }
     }
+
     throw lastError ?? new Error("LLM request failed after retries");
   }
 
   /**
-   * Convenience: send a single user prompt and get text back.
+   * Convenience method for single-turn prompt → string response.
    */
   async prompt(
-    userMessage: string,
-    systemMessage?: string,
-    options?: { model?: string; jsonMode?: boolean },
+    promptText: string,
+    systemPrompt?: string,
+    options: {
+      model?: string;
+      temperature?: number;
+      maxTokens?: number;
+    } = {},
   ): Promise<string> {
     const messages: LLMMessage[] = [];
-    if (systemMessage) {
-      messages.push({ role: "system", content: systemMessage });
+    if (systemPrompt) {
+      messages.push({ role: "system", content: systemPrompt });
     }
-    messages.push({ role: "user", content: userMessage });
+    messages.push({ role: "user", content: promptText });
+
     const res = await this.chat(messages, options);
     return res.content;
   }
 
   /**
-   * Send a prompt and parse the JSON response.
-   * Uses Groq's json_object response format for guaranteed valid JSON.
+   * Convenience method for single-turn prompt expecting JSON output.
    */
-  async promptJSON<T = unknown>(
-    userMessage: string,
-    systemMessage?: string,
-    options?: { model?: string },
+  async promptJSON<T>(
+    promptText: string,
+    systemPrompt?: string,
+    options: {
+      model?: string;
+      temperature?: number;
+      maxTokens?: number;
+    } = {},
   ): Promise<T> {
-    const content = await this.prompt(userMessage, systemMessage, {
+    const sys = systemPrompt
+      ? `${systemPrompt}\nYou MUST respond with valid JSON only. No markdown formatting, no code blocks.`
+      : "You MUST respond with valid JSON only. No markdown formatting, no code blocks.";
+
+    const content = await this.prompt(promptText, sys, {
       ...options,
-      jsonMode: true,
     });
-    return JSON.parse(content) as T;
+
+    const trimmed = content.trim();
+    const jsonStart = trimmed.indexOf("{");
+    const jsonEnd = trimmed.lastIndexOf("}");
+
+    if (jsonStart !== -1 && jsonEnd !== -1) {
+      return JSON.parse(trimmed.substring(jsonStart, jsonEnd + 1)) as T;
+    }
+
+    return JSON.parse(trimmed) as T;
   }
 
-  /** Current budget statistics */
-  getUsageStats(): { totalTokens: number; totalCalls: number; totalDurationMs: number } {
+  /**
+   * Get current usage statistics.
+   */
+  getUsageStats(): {
+    totalTokens: number;
+    totalCalls: number;
+    totalDurationMs: number;
+  } {
     return {
       totalTokens: this.totalTokens,
       totalCalls: this.totalCalls,

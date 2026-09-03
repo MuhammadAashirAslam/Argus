@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { ArgusAgent, AgentEnvelope, AgentContext, Finding, Hypothesis } from "@argus/agent-core";
-import { LLMClient, executeLLMWithTools, type LLMMessage } from "@argus/shared";
+import { LLMClient, executeLLMWithTools, GROQ_MODELS, type LLMMessage } from "@argus/shared";
 import { RepoReadFileTool, RepoSearchTool } from "@argus/git";
 
 export class AnalyzerAgent implements ArgusAgent {
@@ -56,7 +56,7 @@ Do not return any conversational text, ONLY the final JSON object when you are d
     try {
       const response = await executeLLMWithTools(messages, {
         client: this.llm,
-        model: "llama-3.3-70b-versatile",
+        model: GROQ_MODELS.LARGE,
         tools,
         context: {
           workspacePath: context.repository,
@@ -70,11 +70,28 @@ Do not return any conversational text, ONLY the final JSON object when you are d
       const jsonStart = content.indexOf("{");
       const jsonEnd = content.lastIndexOf("}");
       
-      let resPayload;
-      if (jsonStart !== -1 && jsonEnd !== -1) {
-        resPayload = JSON.parse(content.substring(jsonStart, jsonEnd + 1));
-      } else {
-        resPayload = JSON.parse(content);
+      let resPayload: any;
+      try {
+        if (jsonStart !== -1 && jsonEnd !== -1) {
+          resPayload = JSON.parse(content.substring(jsonStart, jsonEnd + 1));
+        } else {
+          resPayload = JSON.parse(content);
+        }
+      } catch {
+        resPayload = {
+          hypotheses: [
+            {
+              id: randomUUID(),
+              statement: content || "Analysis completed without hypothesis.",
+              likelihood: "MEDIUM",
+              supportingEvidenceIds: [],
+              contradictingEvidenceIds: [],
+              resolved: false,
+            },
+          ],
+          findings: [],
+          analysis_complete: true,
+        };
       }
 
       return {

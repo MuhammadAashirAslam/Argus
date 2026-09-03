@@ -10,11 +10,13 @@ export interface LLMToolAdapterOptions {
   maxIterations?: number;
 }
 
+const MAX_TOOL_OUTPUT_CHARS = 4000;
+
 export async function executeLLMWithTools(
   messages: LLMMessage[],
   options: LLMToolAdapterOptions,
 ): Promise<LLMResponse> {
-  const maxIterations = options.maxIterations ?? 10;
+  const maxIterations = options.maxIterations ?? 6;
   let iterations = 0;
 
   const openAiTools = options.tools.map((tool) => ({
@@ -31,13 +33,15 @@ export async function executeLLMWithTools(
   while (iterations < maxIterations) {
     iterations++;
 
+    // On the final iteration, omit tools so the model is forced to synthesize its final answer
+    const isFinalIteration = iterations === maxIterations;
     const res = await options.client.chat(messages, {
       model: options.model,
-      tools: openAiTools,
+      tools: isFinalIteration ? undefined : openAiTools,
     });
 
-    if (!res.toolCalls || res.toolCalls.length === 0) {
-      // The LLM has chosen to return a final response without tools
+    if (!res.toolCalls || res.toolCalls.length === 0 || isFinalIteration) {
+      // The LLM has returned its final response
       return res;
     }
 
@@ -51,7 +55,12 @@ export async function executeLLMWithTools(
     // Execute each tool
     for (const toolCall of res.toolCalls) {
       const toolName = toolCall.function.name;
-      const toolArgs = JSON.parse(toolCall.function.arguments || "{}");
+      let toolArgs: any = {};
+      try {
+        toolArgs = JSON.parse(toolCall.function.arguments || "{}");
+      } catch {
+        toolArgs = {};
+      }
 
       const tool = toolsMap.get(toolName);
       if (!tool) {
@@ -65,10 +74,14 @@ export async function executeLLMWithTools(
 
       try {
         const result = await tool.execute(toolArgs, options.context);
+        let serialized = JSON.stringify(result);
+        if (serialized.length > MAX_TOOL_OUTPUT_CHARS) {
+          serialized = serialized.slice(0, MAX_TOOL_OUTPUT_CHARS) + " ... [truncated]";
+        }
         messages.push({
           role: "tool",
           tool_call_id: toolCall.id,
-          content: JSON.stringify(result),
+          content: serialized,
         });
       } catch (err: any) {
         messages.push({
@@ -80,5 +93,15 @@ export async function executeLLMWithTools(
     }
   }
 
-  throw new Error(`Max iterations (${maxIterations}) reached while executing tools.`);
+  // Graceful fallback if reached
+  return options.client.chat(
+    [
+      ...messages,
+      {
+        role: "user",
+        content: "Please summarize your findings and produce the final JSON response now.",
+      },
+    ],
+    { model: options.model },
+  );
 }

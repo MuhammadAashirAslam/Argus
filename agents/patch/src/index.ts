@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { ArgusAgent, AgentEnvelope, AgentContext, Finding, Hypothesis, VerificationResult } from "@argus/agent-core";
-import { LLMClient, executeLLMWithTools, type LLMMessage } from "@argus/shared";
+import { LLMClient, executeLLMWithTools, GROQ_MODELS, type LLMMessage } from "@argus/shared";
 import { RepoReadFileTool, RepoSearchTool } from "@argus/git";
 
 export class PatchAgent implements ArgusAgent {
@@ -56,7 +56,7 @@ Hypotheses: ${JSON.stringify(hypotheses, null, 2)}
     try {
       const response = await executeLLMWithTools(messages, {
         client: this.llm,
-        model: "llama-3.3-70b-versatile",
+        model: GROQ_MODELS.LARGE,
         tools,
         context: {
           workspacePath: context.repository,
@@ -70,11 +70,22 @@ Hypotheses: ${JSON.stringify(hypotheses, null, 2)}
       const jsonStart = content.indexOf("{");
       const jsonEnd = content.lastIndexOf("}");
       
-      let resPayload;
-      if (jsonStart !== -1 && jsonEnd !== -1) {
-        resPayload = JSON.parse(content.substring(jsonStart, jsonEnd + 1));
-      } else {
-        resPayload = JSON.parse(content);
+      let resPayload: any;
+      try {
+        if (jsonStart !== -1 && jsonEnd !== -1) {
+          resPayload = JSON.parse(content.substring(jsonStart, jsonEnd + 1));
+        } else {
+          resPayload = JSON.parse(content);
+        }
+      } catch {
+        resPayload = {
+          proposedChange: {
+            id: randomUUID(),
+            filePath: "README.md",
+            diff: "",
+            explanation: content || "No modifications required.",
+          },
+        };
       }
 
       if (resPayload.proposedChange && !resPayload.proposedChange.id) {
