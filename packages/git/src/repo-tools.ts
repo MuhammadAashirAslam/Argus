@@ -32,7 +32,10 @@ export const RepoReadFileTool: McpTool<z.infer<typeof RepoReadFileInputSchema>, 
       if (!fullPath.startsWith(path.resolve(context.workspacePath))) {
         throw new Error("Path traversal outside workspace is forbidden");
       }
-      const content = await fs.readFile(fullPath, "utf-8");
+      let content = await fs.readFile(fullPath, "utf-8");
+      if (content.length > 3000) {
+        content = content.slice(0, 3000) + "\n... [truncated to 3000 characters]";
+      }
       return {
         success: true,
         data: { content, size: content.length },
@@ -69,7 +72,17 @@ export const RepoListFilesTool: McpTool<z.infer<typeof RepoListFilesInputSchema>
     try {
       const dir = input.directory === "." ? "" : `"${input.directory}"`;
       const { stdout } = await execAsync(`git ls-files ${dir}`, { cwd: context.workspacePath });
-      const files = stdout.split("\n").filter(Boolean);
+      let files = stdout.split("\n").filter(Boolean);
+      if (files.length > 40) {
+        const priority = files.filter(f => 
+          f.includes(".github") || 
+          f.includes("Dockerfile") || 
+          f.endsWith(".yml") || 
+          f.endsWith(".yaml") || 
+          f.endsWith(".json")
+        ).slice(0, 30);
+        files = [...new Set([...priority, ...files.slice(0, 10)])];
+      }
       return {
         success: true,
         data: { files },

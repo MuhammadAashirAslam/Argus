@@ -10,13 +10,13 @@ export interface LLMToolAdapterOptions {
   maxIterations?: number;
 }
 
-const MAX_TOOL_OUTPUT_CHARS = 4000;
+const MAX_TOOL_OUTPUT_CHARS = 1200;
 
 export async function executeLLMWithTools(
   messages: LLMMessage[],
   options: LLMToolAdapterOptions,
 ): Promise<LLMResponse> {
-  const maxIterations = options.maxIterations ?? 6;
+  const maxIterations = options.maxIterations ?? 4;
   let iterations = 0;
 
   const openAiTools = options.tools.map((tool) => ({
@@ -33,12 +33,46 @@ export async function executeLLMWithTools(
   while (iterations < maxIterations) {
     iterations++;
 
-    // On the final iteration, omit tools so the model is forced to synthesize its final answer
+    // Prune intermediate messages if conversation history grows too large for TPM limits
+    if (messages.length > 6) {
+      const system = messages[0];
+      const user = messages[1];
+      const recent = messages.slice(-3);
+      messages = [system!, user!, ...recent];
+    }
+
     const isFinalIteration = iterations === maxIterations;
-    const res = await options.client.chat(messages, {
-      model: options.model,
-      tools: isFinalIteration ? undefined : openAiTools,
-    });
+    if (isFinalIteration) {
+      messages.push({
+        role: "user",
+        content: "Please summarize your findings and return only the final JSON object now.",
+      });
+    }
+
+    let res: LLMResponse;
+    try {
+      res = await options.client.chat(messages, {
+        model: options.model,
+        tools: openAiTools,
+      });
+    } catch (err: any) {
+      // If Groq complains about tool_use_failed, fallback to requesting final JSON directly
+      if (err.message?.includes("tool_use_failed")) {
+        console.log(`    ↳ [${options.context.agentId}] Synthesizing final JSON response...`);
+        return options.client.chat(
+          [
+            messages[0]!,
+            messages[1]!,
+            {
+              role: "user",
+              content: "Please output the final JSON object directly based on your investigation so far.",
+            },
+          ],
+          { model: options.model },
+        );
+      }
+      throw err;
+    }
 
     if (!res.toolCalls || res.toolCalls.length === 0 || isFinalIteration) {
       // The LLM has returned its final response
@@ -62,10 +96,13 @@ export async function executeLLMWithTools(
         toolArgs = {};
       }
 
+      console.log(`    ↳ [${options.context.agentId}] Tool: ${toolName}(${JSON.stringify(toolArgs).slice(0, 60)})`);
+
       const tool = toolsMap.get(toolName);
       if (!tool) {
         messages.push({
           role: "tool",
+          name: toolName,
           tool_call_id: toolCall.id,
           content: JSON.stringify({ error: `Tool ${toolName} not found` }),
         });
@@ -80,12 +117,14 @@ export async function executeLLMWithTools(
         }
         messages.push({
           role: "tool",
+          name: toolName,
           tool_call_id: toolCall.id,
           content: serialized,
         });
       } catch (err: any) {
         messages.push({
           role: "tool",
+          name: toolName,
           tool_call_id: toolCall.id,
           content: JSON.stringify({ error: err.message || String(err) }),
         });
@@ -96,7 +135,8 @@ export async function executeLLMWithTools(
   // Graceful fallback if reached
   return options.client.chat(
     [
-      ...messages,
+      messages[0]!,
+      messages[1]!,
       {
         role: "user",
         content: "Please summarize your findings and produce the final JSON response now.",

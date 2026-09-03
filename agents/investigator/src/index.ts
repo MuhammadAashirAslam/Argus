@@ -55,15 +55,11 @@ Do not return any conversational text, ONLY the final JSON object when you are d
     ];
 
     const tools = [
+      RepoListFilesTool,
+      RepoReadFileTool,
+      RepoSearchTool,
       GitStatusTool,
       GitLogTool,
-      RepoListFilesTool,
-      RepoSearchTool,
-      RepoReadFileTool,
-      RepoGetDependenciesTool,
-      ...(pullRequest
-        ? [GetPullRequestTool, GetPullRequestFilesTool, GetIssuesTool, GetCommentsTool]
-        : []),
     ];
 
     try {
@@ -76,7 +72,7 @@ Do not return any conversational text, ONLY the final JSON object when you are d
           runId: context.runId,
           agentId: this.id,
         },
-        maxIterations: 15,
+        maxIterations: 3,
       });
 
       // The response.content should contain the final JSON. We extract it.

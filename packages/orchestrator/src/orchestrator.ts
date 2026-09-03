@@ -40,6 +40,9 @@ export class Orchestrator implements IOrchestrator {
     budget: OrchestratorBudget,
   ): AgentContext {
     const logEvent = (level: string, msg: string) => {
+      const prefix = level === "error" ? "  [!] ERROR:" : level === "warn" ? "  [*] WARN:" : "  ❯";
+      console.log(`${prefix} ${msg}`);
+
       this.trajectory.logEvent({
         runId: state.runId,
         step,
@@ -47,8 +50,7 @@ export class Orchestrator implements IOrchestrator {
         state: state.status,
         event: `log.${level}`,
         timestamp: new Date().toISOString(),
-        // Cannot pass arbitrary payload to trajectory event per schema, appending msg to event string
-        tool: msg.substring(0, 500) // Put message in tool field since it's an optional string
+        tool: msg.substring(0, 500)
       });
     };
 
@@ -93,6 +95,8 @@ export class Orchestrator implements IOrchestrator {
 
     const ctx = this.createContext(state, step, budget);
 
+    console.log(`\n[ARGUS] ❯ Activating ${role} Agent (Step ${step}/${budget.maxSteps})...`);
+
     this.trajectory.logEvent({
       runId: state.runId,
       step,
@@ -117,6 +121,8 @@ export class Orchestrator implements IOrchestrator {
       timestamp: new Date().toISOString(),
       durationMs,
     });
+
+    console.log(`[ARGUS] ✓ ${role} completed in ${durationMs}ms`);
 
     if (validatedOutput.errors && validatedOutput.errors.length > 0) {
       throw new Error(`Agent ${role} returned errors: ${JSON.stringify(validatedOutput.errors)}`);

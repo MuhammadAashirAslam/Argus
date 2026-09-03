@@ -133,7 +133,7 @@ export class LLMClient {
           body: JSON.stringify(body),
         });
 
-        if (res.status === 429 || res.status >= 500) {
+        if (res.status === 429 || res.status === 413 || res.status >= 500) {
           const errBody = await res.text();
           lastError = new Error(`Groq API error ${res.status}: ${errBody}`);
 
