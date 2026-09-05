@@ -30,25 +30,28 @@ graph TD
 ```
 
 ### Specialized Agents
-* **Investigator Agent** (`agents/investigator`): Explores repositories, reads files, inspects git trees, and gathers grounded evidence.
-* **Analyzer Agent** (`agents/analyzer`): Correlates static analysis findings and CI errors to formulate concrete hypotheses (`FACT` vs `INFERENCE` vs `HYPOTHESIS`).
-* **Configuration Agent** (`agents/configuration`): Analyzes configuration debt across GitHub Actions and Dockerfiles using 10 deterministic rules.
-* **Historian Agent** (`agents/historian`): Inspects repository git history, blames, and commit intent.
-* **Patch Agent** (`agents/patch`): Generates candidate unified diff code modifications.
-* **Verifier Agent** (`agents/verifier`): Executes multi-stage isolated verification (AST, lint, vitest) inside fresh Docker sandboxes.
-* **Orchestrator** (`packages/orchestrator`): Central state machine managing transitions, budget enforcement, and execution trajectories.
+
+- **Investigator Agent** (`agents/investigator`): Explores repositories, reads files, inspects git trees, and gathers grounded evidence.
+- **Analyzer Agent** (`agents/analyzer`): Correlates static analysis findings and CI errors to formulate concrete hypotheses (`FACT` vs `INFERENCE` vs `HYPOTHESIS`).
+- **Configuration Agent** (`agents/configuration`): Analyzes configuration debt across GitHub Actions and Dockerfiles using 10 deterministic rules.
+- **Historian Agent** (`agents/historian`): Inspects repository git history, blames, and commit intent.
+- **Patch Agent** (`agents/patch`): Generates candidate unified diff code modifications.
+- **Verifier Agent** (`agents/verifier`): Executes multi-stage isolated verification (AST, lint, vitest) inside fresh Docker sandboxes.
+- **Orchestrator** (`packages/orchestrator`): Central state machine managing transitions, budget enforcement, and execution trajectories.
 
 ---
 
 ## 🚀 Getting Started
 
 ### 1. Prerequisites
+
 - **Node.js**: `>= 20.0.0`
 - **pnpm**: `>= 9.0.0`
 - **Docker Desktop**: (For sandboxed verification)
 - **Groq API Key**: (Free tier at [console.groq.com](https://console.groq.com/keys))
 
 ### 2. Environment Configuration
+
 Create a `.env.local` file in the root directory (or export environment variables in your shell):
 
 ```bash
@@ -58,6 +61,7 @@ GITHUB_TOKEN=github_pat_your_token_here
 ```
 
 ### 3. Installation & Build
+
 ```bash
 # Install dependencies across all 21 monorepo packages
 pnpm install
@@ -79,19 +83,25 @@ pnpm test:e2e
 ARGUS provides a developer CLI for local scanning, patch verification, and multi-agent problem resolution:
 
 ### 1. Configuration Debt Scanning
+
 Scan GitHub Actions workflows and Dockerfiles for 10 deterministic anti-patterns:
+
 ```bash
 pnpm argus config scan .
 ```
 
 ### 2. Isolated Docker Patch Verification
+
 Verify a unified diff inside a fresh, isolated Docker container (`node:20-alpine`):
+
 ```bash
 pnpm argus verify path/to/fix.diff --sandbox
 ```
 
 ### 3. Multi-Agent Analysis Run
+
 Launch the autonomous agent orchestration loop on a local or remote repository:
+
 ```bash
 # Analyze local repository
 pnpm argus analyze
@@ -132,11 +142,13 @@ argus/
 ## 📊 Comparative Benchmarks
 
 ARGUS includes built-in comparative evaluation against standard single-agent and toolless LLM baselines (§26-§31):
-* **Baseline A**: Direct LLM reasoning on issue descriptions without tool access.
-* **Baseline B**: Single-agent LLM reasoning with static file context.
-* **ARGUS MCP**: Multi-agent orchestrated pipeline with dynamic MCP tool usage and deterministic verification.
+
+- **Baseline A**: Direct LLM reasoning on issue descriptions without tool access.
+- **Baseline B**: Single-agent LLM reasoning with static file context.
+- **ARGUS MCP**: Multi-agent orchestrated pipeline with dynamic MCP tool usage and deterministic verification.
 
 Run benchmark evaluation:
+
 ```bash
 pnpm test --filter @argus/benchmarks
 ```

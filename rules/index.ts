@@ -1,4 +1,4 @@
-import type { DebtRule } from "@argus/config-engine";
+import type { DebtRule } from "@argus/agent-core";
 import { CD001_UnpinnedAction } from "./github-actions/cd001_unpinned_action.js";
 import { CD002_FloatingDependency } from "./github-actions/cd002_floating_dependency.js";
 import { CD003_HardcodedSecrets } from "./github-actions/cd003_hardcoded_secrets.js";

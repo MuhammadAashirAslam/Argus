@@ -5,7 +5,7 @@ import { GITHUB_TOOL_VERSION } from "./types.js";
 async function githubPost(path: string, body: any): Promise<any> {
   const token = process.env["GITHUB_TOKEN"];
   if (!token) throw new Error("GITHUB_TOKEN environment variable is required");
-  
+
   const headers: Record<string, string> = {
     Authorization: `token ${token}`,
     "User-Agent": "ARGUS-Agent/1.0",
@@ -41,7 +41,10 @@ export const CreateReviewOutputSchema = z.object({
   state: z.string(),
 });
 
-export const CreateReviewTool: McpTool<z.infer<typeof CreateReviewInputSchema>, z.infer<typeof CreateReviewOutputSchema>> = {
+export const CreateReviewTool: McpTool<
+  z.infer<typeof CreateReviewInputSchema>,
+  z.infer<typeof CreateReviewOutputSchema>
+> = {
   name: "github.create_review",
   version: GITHUB_TOOL_VERSION,
   description: "Create a review comment on an open GitHub pull request",
@@ -49,24 +52,41 @@ export const CreateReviewTool: McpTool<z.infer<typeof CreateReviewInputSchema>, 
   inputSchema: CreateReviewInputSchema,
   outputSchema: CreateReviewOutputSchema,
 
-async execute(input, _context: ToolExecutionContext): Promise<McpToolResult<z.infer<typeof CreateReviewOutputSchema>>> {
+  async execute(
+    input,
+    _context: ToolExecutionContext,
+  ): Promise<McpToolResult<z.infer<typeof CreateReviewOutputSchema>>> {
     const start = Date.now();
     try {
       const token = process.env["GITHUB_TOKEN"];
       if (!token) {
         return {
           success: false,
-          error: { code: "AUTH_REQUIRED", message: "GITHUB_TOKEN environment variable is required to write PR reviews" },
+          error: {
+            code: "AUTH_REQUIRED",
+            message: "GITHUB_TOKEN environment variable is required to write PR reviews",
+          },
           durationMs: Date.now() - start,
         };
       }
-      const json = await githubPost(`/repos/${input.owner}/${input.repo}/pulls/${input.pullNumber}/reviews`, {
-        body: input.body,
-        event: input.event,
-      });
-      return { success: true, data: { id: json.id, htmlUrl: json.html_url, state: json.state }, durationMs: Date.now() - start };
+      const json = await githubPost(
+        `/repos/${input.owner}/${input.repo}/pulls/${input.pullNumber}/reviews`,
+        {
+          body: input.body,
+          event: input.event,
+        },
+      );
+      return {
+        success: true,
+        data: { id: json.id, htmlUrl: json.html_url, state: json.state },
+        durationMs: Date.now() - start,
+      };
     } catch (err: any) {
-      return { success: false, error: { code: "CREATE_REVIEW_FAILED", message: err?.message || String(err) }, durationMs: Date.now() - start };
+      return {
+        success: false,
+        error: { code: "CREATE_REVIEW_FAILED", message: err?.message || String(err) },
+        durationMs: Date.now() - start,
+      };
     }
   },
 };
@@ -84,7 +104,10 @@ export const CreateBranchOutputSchema = z.object({
   url: z.string(),
 });
 
-export const CreateBranchTool: McpTool<z.infer<typeof CreateBranchInputSchema>, z.infer<typeof CreateBranchOutputSchema>> = {
+export const CreateBranchTool: McpTool<
+  z.infer<typeof CreateBranchInputSchema>,
+  z.infer<typeof CreateBranchOutputSchema>
+> = {
   name: "github.create_branch",
   version: GITHUB_TOOL_VERSION,
   description: "Create a new git branch/reference",
@@ -92,16 +115,27 @@ export const CreateBranchTool: McpTool<z.infer<typeof CreateBranchInputSchema>, 
   inputSchema: CreateBranchInputSchema,
   outputSchema: CreateBranchOutputSchema,
 
-  async execute(input, _context: ToolExecutionContext): Promise<McpToolResult<z.infer<typeof CreateBranchOutputSchema>>> {
+  async execute(
+    input,
+    _context: ToolExecutionContext,
+  ): Promise<McpToolResult<z.infer<typeof CreateBranchOutputSchema>>> {
     const start = Date.now();
     try {
       const json = await githubPost(`/repos/${input.owner}/${input.repo}/git/refs`, {
         ref: `refs/heads/${input.branchName}`,
         sha: input.sha,
       });
-      return { success: true, data: { ref: json.ref, url: json.url }, durationMs: Date.now() - start };
+      return {
+        success: true,
+        data: { ref: json.ref, url: json.url },
+        durationMs: Date.now() - start,
+      };
     } catch (err: any) {
-      return { success: false, error: { code: "CREATE_BRANCH_FAILED", message: err?.message || String(err) }, durationMs: Date.now() - start };
+      return {
+        success: false,
+        error: { code: "CREATE_BRANCH_FAILED", message: err?.message || String(err) },
+        durationMs: Date.now() - start,
+      };
     }
   },
 };
@@ -121,7 +155,10 @@ export const CreatePullRequestOutputSchema = z.object({
   htmlUrl: z.string().url(),
 });
 
-export const CreatePullRequestTool: McpTool<z.infer<typeof CreatePullRequestInputSchema>, z.infer<typeof CreatePullRequestOutputSchema>> = {
+export const CreatePullRequestTool: McpTool<
+  z.infer<typeof CreatePullRequestInputSchema>,
+  z.infer<typeof CreatePullRequestOutputSchema>
+> = {
   name: "github.create_pull_request",
   version: GITHUB_TOOL_VERSION,
   description: "Create a new pull request",
@@ -129,7 +166,10 @@ export const CreatePullRequestTool: McpTool<z.infer<typeof CreatePullRequestInpu
   inputSchema: CreatePullRequestInputSchema,
   outputSchema: CreatePullRequestOutputSchema,
 
-  async execute(input, _context: ToolExecutionContext): Promise<McpToolResult<z.infer<typeof CreatePullRequestOutputSchema>>> {
+  async execute(
+    input,
+    _context: ToolExecutionContext,
+  ): Promise<McpToolResult<z.infer<typeof CreatePullRequestOutputSchema>>> {
     const start = Date.now();
     try {
       const json = await githubPost(`/repos/${input.owner}/${input.repo}/pulls`, {
@@ -138,9 +178,17 @@ export const CreatePullRequestTool: McpTool<z.infer<typeof CreatePullRequestInpu
         base: input.base,
         body: input.body,
       });
-      return { success: true, data: { number: json.number, htmlUrl: json.html_url }, durationMs: Date.now() - start };
+      return {
+        success: true,
+        data: { number: json.number, htmlUrl: json.html_url },
+        durationMs: Date.now() - start,
+      };
     } catch (err: any) {
-      return { success: false, error: { code: "CREATE_PR_FAILED", message: err?.message || String(err) }, durationMs: Date.now() - start };
+      return {
+        success: false,
+        error: { code: "CREATE_PR_FAILED", message: err?.message || String(err) },
+        durationMs: Date.now() - start,
+      };
     }
   },
 };

@@ -1,4 +1,4 @@
-import type { DebtRule, ParsedConfigContext } from "@argus/config-engine";
+import type { DebtRule, ParsedConfigContext } from "@argus/agent-core";
 import type { DebtFinding } from "@argus/agent-core";
 
 const MAX_RECOMMENDED_STEPS = 25;
@@ -41,7 +41,8 @@ export const CD005_ExcessiveWorkflowComplexity: DebtRule = {
           severity: "low",
           file: context.filePath,
           evidence: `Workflow contains ${jobCount} separate jobs in a single file`,
-          recommendation: "Decompose monolithic workflow files containing more than 10 jobs into distinct workflow files.",
+          recommendation:
+            "Decompose monolithic workflow files containing more than 10 jobs into distinct workflow files.",
         });
       }
     }

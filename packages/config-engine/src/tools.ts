@@ -20,7 +20,10 @@ export const ConfigAnalyzeOutputSchema = z.object({
 
 // Since the tools need an engine with rules registered, we can create a factory function.
 export function createConfigTools(engine: ConfigDebtEngine): McpTool[] {
-  const analyzeGithubActions: McpTool<z.infer<typeof ConfigAnalyzeInputSchema>, z.infer<typeof ConfigAnalyzeOutputSchema>> = {
+  const analyzeGithubActions: McpTool<
+    z.infer<typeof ConfigAnalyzeInputSchema>,
+    z.infer<typeof ConfigAnalyzeOutputSchema>
+  > = {
     name: "config.analyze_github_actions",
     version: CONFIG_TOOL_VERSION,
     description: "Analyze GitHub Actions workflows for configuration debt",
@@ -28,7 +31,10 @@ export function createConfigTools(engine: ConfigDebtEngine): McpTool[] {
     inputSchema: ConfigAnalyzeInputSchema,
     outputSchema: ConfigAnalyzeOutputSchema,
 
-    async execute(input, context: ToolExecutionContext): Promise<McpToolResult<z.infer<typeof ConfigAnalyzeOutputSchema>>> {
+    async execute(
+      input,
+      context: ToolExecutionContext,
+    ): Promise<McpToolResult<z.infer<typeof ConfigAnalyzeOutputSchema>>> {
       const start = Date.now();
       try {
         const fullDir = path.resolve(context.workspacePath, input.directory, ".github/workflows");
@@ -51,12 +57,19 @@ export function createConfigTools(engine: ConfigDebtEngine): McpTool[] {
         }
         return { success: true, data: { findings }, durationMs: Date.now() - start };
       } catch (err: any) {
-        return { success: false, error: { code: "ANALYZE_GHA_FAILED", message: err?.message || String(err) }, durationMs: Date.now() - start };
+        return {
+          success: false,
+          error: { code: "ANALYZE_GHA_FAILED", message: err?.message || String(err) },
+          durationMs: Date.now() - start,
+        };
       }
     },
   };
 
-  const analyzeDockerfile: McpTool<z.infer<typeof ConfigAnalyzeInputSchema>, z.infer<typeof ConfigAnalyzeOutputSchema>> = {
+  const analyzeDockerfile: McpTool<
+    z.infer<typeof ConfigAnalyzeInputSchema>,
+    z.infer<typeof ConfigAnalyzeOutputSchema>
+  > = {
     name: "config.analyze_dockerfile",
     version: CONFIG_TOOL_VERSION,
     description: "Analyze Dockerfiles for configuration debt",
@@ -64,7 +77,10 @@ export function createConfigTools(engine: ConfigDebtEngine): McpTool[] {
     inputSchema: ConfigAnalyzeInputSchema,
     outputSchema: ConfigAnalyzeOutputSchema,
 
-    async execute(input, context: ToolExecutionContext): Promise<McpToolResult<z.infer<typeof ConfigAnalyzeOutputSchema>>> {
+    async execute(
+      input,
+      context: ToolExecutionContext,
+    ): Promise<McpToolResult<z.infer<typeof ConfigAnalyzeOutputSchema>>> {
       const start = Date.now();
       try {
         const fullDir = path.resolve(context.workspacePath, input.directory);
@@ -86,7 +102,11 @@ export function createConfigTools(engine: ConfigDebtEngine): McpTool[] {
         }
         return { success: true, data: { findings }, durationMs: Date.now() - start };
       } catch (err: any) {
-        return { success: false, error: { code: "ANALYZE_DOCKERFILE_FAILED", message: err?.message || String(err) }, durationMs: Date.now() - start };
+        return {
+          success: false,
+          error: { code: "ANALYZE_DOCKERFILE_FAILED", message: err?.message || String(err) },
+          durationMs: Date.now() - start,
+        };
       }
     },
   };

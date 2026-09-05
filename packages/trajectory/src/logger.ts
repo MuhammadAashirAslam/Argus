@@ -1,10 +1,12 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import type { AgentEvent } from "@argus/agent-core";
 
 const SECRET_PATTERNS = [
   /ghp_[a-zA-Z0-9]{36}/g,
   /gho_[a-zA-Z0-9]{36}/g,
   /xox[baprs]-[a-zA-Z0-9]{10,}/g,
-  /(Bearer\s+)[a-zA-Z0-9_\-\.]{20,}/gi,
+  /(Bearer\s+)[a-zA-Z0-9_.-]{20,}/gi,
   /(["']?(?:password|token|secret|apiKey)["']?\s*[:=]\s*["']?)[^"'\s]{8,}(["']?)/gi,
 ];
 
@@ -18,6 +20,10 @@ export function redactSecrets(text: string): string {
 
 export class TrajectoryLogger {
   private readonly events: AgentEvent[] = [];
+
+  public clear(): void {
+    this.events.length = 0;
+  }
 
   public logEvent(event: AgentEvent): void {
     const sanitizedEvent: AgentEvent = {
@@ -33,5 +39,29 @@ export class TrajectoryLogger {
 
   public getEventsForAgent(agentName: string): AgentEvent[] {
     return this.events.filter((e) => e.agent === agentName);
+  }
+
+  public async persist(runId: string, baseDir: string = process.cwd()): Promise<string> {
+    const runsDir = path.join(baseDir, ".argus", "runs");
+    await fs.mkdir(runsDir, { recursive: true });
+    const targetFile = path.join(runsDir, `${runId}.json`);
+    const data = JSON.stringify(
+      {
+        runId,
+        persistedAt: new Date().toISOString(),
+        events: this.events,
+      },
+      null,
+      2,
+    );
+    await fs.writeFile(targetFile, data, "utf-8");
+    return targetFile;
+  }
+
+  public static async load(runId: string, baseDir: string = process.cwd()): Promise<AgentEvent[]> {
+    const filePath = path.join(baseDir, ".argus", "runs", `${runId}.json`);
+    const content = await fs.readFile(filePath, "utf-8");
+    const parsed = JSON.parse(content);
+    return parsed.events || [];
   }
 }

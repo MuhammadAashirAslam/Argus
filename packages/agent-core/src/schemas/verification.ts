@@ -1,10 +1,6 @@
 import { z } from "zod";
 
-export const VerificationStatusSchema = z.enum([
-  "verified",
-  "partially_verified",
-  "failed",
-]);
+export const VerificationStatusSchema = z.enum(["verified", "partially_verified", "failed"]);
 
 export const VerificationStageTypeSchema = z.enum([
   "PATCH_APPLICATION",

@@ -2,7 +2,7 @@
 import { runConfigScan } from "./commands/config_scan.js";
 import { runVerifyPatch } from "./commands/verify.js";
 import { runAnalyze } from "./commands/analyze.js";
-import { formatTrajectoryTimeline } from "./commands/trace.js";
+import { formatTrajectoryTimeline, runTrace } from "./commands/trace.js";
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
@@ -20,7 +20,7 @@ Usage:
   argus analyze --repo <owner/repo>       Run multi-agent investigation, diagnosis, and patch cycle
     [--pr <number>]                       Analyze a specific Pull Request
     [--objective <text>]                  Provide custom task or bug objective
-  argus trace                             Format execution timeline from events
+  argus trace <runId> [path]              Format execution timeline for a persisted run
 
 Options:
   --help, -h                              Show this help menu
@@ -39,7 +39,9 @@ Options:
       console.log("  ✓ No configuration debt detected. All rules passed!");
     } else {
       for (const f of findings) {
-        console.log(`  - [${f.ruleId}] (${f.severity.toUpperCase()}) ${f.title} in ${f.file}:${f.line ?? "N/A"}`);
+        console.log(
+          `  - [${f.ruleId}] (${f.severity.toUpperCase()}) ${f.title} in ${f.file}:${f.line ?? "N/A"}`,
+        );
         console.log(`    Recommendation: ${f.recommendation}`);
       }
     }
@@ -50,12 +52,16 @@ Options:
   if (command === "verify") {
     const patchPath = args[1];
     if (!patchPath || patchPath.startsWith("--")) {
-      console.error("Error: Please provide a patch diff file to verify (e.g. 'argus verify fix.diff').");
+      console.error(
+        "Error: Please provide a patch diff file to verify (e.g. 'argus verify fix.diff').",
+      );
       process.exit(1);
     }
 
     const useSandbox = args.includes("--sandbox");
-    console.log(`[ARGUS] Verifying patch '${patchPath}' (${useSandbox ? "Docker Sandbox" : "Host Environment"})...`);
+    console.log(
+      `[ARGUS] Verifying patch '${patchPath}' (${useSandbox ? "Docker Sandbox" : "Host Environment"})...`,
+    );
 
     const result = await runVerifyPatch(patchPath, { useSandbox });
     console.log(`\n========================================`);
@@ -82,7 +88,8 @@ Options:
     const repo = repoIndex !== -1 ? args[repoIndex + 1] : process.cwd();
 
     const prIndex = args.indexOf("--pr");
-    const prNumber = prIndex !== -1 && args[prIndex + 1] ? parseInt(args[prIndex + 1]!, 10) : undefined;
+    const prNumber =
+      prIndex !== -1 && args[prIndex + 1] ? parseInt(args[prIndex + 1]!, 10) : undefined;
 
     const objIndex = args.indexOf("--objective");
     const objective = objIndex !== -1 && args[objIndex + 1] ? args[objIndex + 1] : undefined;
@@ -99,7 +106,9 @@ Options:
     console.log(`Status:        ${state.status.toUpperCase()}`);
     console.log(`Run ID:        ${state.runId}`);
     console.log(`Steps Taken:   ${state.trajectory.length}`);
-    console.log(`Files Analyzed:${state.relevantFiles.length > 0 ? " " + state.relevantFiles.join(", ") : " None"}`);
+    console.log(
+      `Files Analyzed:${state.relevantFiles.length > 0 ? " " + state.relevantFiles.join(", ") : " None"}`,
+    );
     console.log(`Findings:      ${state.findings.length}`);
     console.log(`Hypotheses:    ${state.hypotheses.length}`);
     console.log(`Patches Tried: ${state.proposedChanges.length}`);
@@ -129,6 +138,24 @@ Options:
       console.log(`\n` + formatTrajectoryTimeline(state.trajectory));
     }
 
+    return;
+  }
+
+  // 4. Trace Persisted Execution
+  if (command === "trace") {
+    const runId = args[1];
+    if (!runId || runId.startsWith("--")) {
+      console.error("Error: Please provide a run ID to trace (e.g. 'argus trace run_123').");
+      process.exit(1);
+    }
+    const targetDir = args[2] ?? process.cwd();
+    try {
+      const output = await runTrace(runId, targetDir);
+      console.log(`\n` + output);
+    } catch (err: any) {
+      console.error(`Error: ${err?.message || String(err)}`);
+      process.exit(1);
+    }
     return;
   }
 

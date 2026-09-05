@@ -7,6 +7,7 @@ description: >-
 # Git Hooks & Commit Hygiene Skill
 
 ## Purpose
+
 Enforces mechanical quality gates so that unformatted, failing, or malformed TypeScript code cannot be committed to the repository. This guarantees that every commit in ARGUS is a clean, reviewable, and reproducible unit of work.
 
 ---
@@ -14,19 +15,16 @@ Enforces mechanical quality gates so that unformatted, failing, or malformed Typ
 ## 1. Pre-Commit Pipeline Setup (Husky + lint-staged)
 
 ### `.lintstagedrc.json`
+
 ```json
 {
-  "*.{ts,tsx}": [
-    "eslint --fix",
-    "prettier --write"
-  ],
-  "*.{json,md,yml,yaml}": [
-    "prettier --write"
-  ]
+  "*.{ts,tsx}": ["eslint --fix", "prettier --write"],
+  "*.{json,md,yml,yaml}": ["prettier --write"]
 }
 ```
 
 ### `.husky/pre-commit`
+
 ```sh
 #!/bin/sh
 . "$(dirname "$0")/_/husky.sh"

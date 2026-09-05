@@ -22,11 +22,10 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src/"
+    "lint": "eslint ."
   },
   "dependencies": {
-    "@argus/agent-core": "workspace:*",
-    "@argus/config-engine": "workspace:*"
+    "@argus/agent-core": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.7.2"

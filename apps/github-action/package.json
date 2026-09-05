@@ -10,9 +10,16 @@
     "lint": "eslint src/"
   },
   "dependencies": {
+    "@argus/agent-analyzer": "workspace:^",
+    "@argus/agent-configuration": "workspace:^",
     "@argus/agent-core": "workspace:*",
+    "@argus/agent-historian": "workspace:^",
+    "@argus/agent-investigator": "workspace:^",
+    "@argus/agent-patch": "workspace:^",
+    "@argus/agent-verifier": "workspace:^",
     "@argus/orchestrator": "workspace:*",
     "@argus/github": "workspace:*",
+    "@argus/mcp-server": "workspace:*",
     "@argus/config-engine": "workspace:*"
   },
   "devDependencies": {

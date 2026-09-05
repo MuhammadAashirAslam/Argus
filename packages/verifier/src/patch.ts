@@ -68,3 +68,29 @@ export async function validateAndApplyPatch(
     }
   }
 }
+
+/**
+ * Reverts an applied patch from the host workspace using git apply --reverse (§5.6, §19).
+ */
+export async function rollbackPatch(
+  diffContent: string,
+  context: SandboxExecutionContext,
+): Promise<boolean> {
+  const tempPatchPath = path.join(context.workspacePath, `.rollback_${Date.now()}.diff`);
+  try {
+    await fs.writeFile(tempPatchPath, diffContent, "utf-8");
+    await execAsync(`git apply --reverse "${tempPatchPath}"`, {
+      cwd: context.workspacePath,
+      timeout: context.timeoutMs,
+    });
+    return true;
+  } catch {
+    return false;
+  } finally {
+    try {
+      await fs.unlink(tempPatchPath);
+    } catch {
+      // Ignore cleanup error
+    }
+  }
+}

@@ -3,14 +3,14 @@ import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
 import type { VerificationResult, StageResult, VerificationStatus } from "@argus/agent-core";
 import type { SandboxExecutionContext, VerificationPipelineOptions } from "./types.js";
-import { validateAndApplyPatch } from "./patch.js";
+import { validateAndApplyPatch, rollbackPatch } from "./patch.js";
 import { SandboxContainer, isDockerAvailable } from "@argus/sandbox";
 
 const execAsync = promisify(exec);
 
 export class VerificationRunner {
   private async executeStageCommand(
-    stageName: "SYNTAX_AST" | "LINT" | "TESTS",
+    stageName: "SYNTAX_AST" | "STATIC_ANALYSIS" | "LINT" | "TESTS",
     command: string,
     context: SandboxExecutionContext,
   ): Promise<StageResult> {
@@ -77,7 +77,34 @@ export class VerificationRunner {
     });
 
     try {
-      await container.initialize();
+      try {
+        await container.initialize();
+      } catch (initErr: any) {
+        stages.push({
+          stage: "PATCH_APPLICATION",
+          passed: false,
+          exitCode: 1,
+          durationMs: 0,
+          stdout: "",
+          stderr: initErr?.message || String(initErr),
+          errorDetails: [
+            `Sandbox container initialization failed: ${initErr?.message || String(initErr)}`,
+          ],
+        });
+        failures.push("Sandbox container initialization failed");
+        return {
+          id: randomUUID(),
+          patchApplied: false,
+          syntaxValid: false,
+          staticAnalysisPassed: false,
+          lintPassed: false,
+          testsPassed: false,
+          stages,
+          failures,
+          overall: "failed",
+          verifiedAt: new Date().toISOString(),
+        };
+      }
 
       // Stage 1: Apply patch in container
       const startPatch = Date.now();
@@ -89,7 +116,9 @@ export class VerificationRunner {
         durationMs: Date.now() - startPatch,
         stdout: patchRes.stdout,
         stderr: patchRes.stderr,
-        errorDetails: patchRes.passed ? [] : [patchRes.stderr || "Patch application failed in sandbox"],
+        errorDetails: patchRes.passed
+          ? []
+          : [patchRes.stderr || "Patch application failed in sandbox"],
       };
       stages.push(patchStage);
 
@@ -109,10 +138,11 @@ export class VerificationRunner {
         };
       }
 
-      // Stage 2: Syntax / AST (tsc --noEmit)
+      // Stage 2: Syntax / AST check
       let syntaxValid = true;
       if (options.runSyntaxCheck ?? true) {
-        const syntaxRes = await container.executeCommand("npx tsc --noEmit");
+        const syntaxCmd = options.syntaxCheckCommand ?? "npx tsc --noEmit";
+        const syntaxRes = await container.executeCommand(syntaxCmd);
         stages.push({
           stage: "SYNTAX_AST",
           passed: syntaxRes.passed,
@@ -120,15 +150,39 @@ export class VerificationRunner {
           durationMs: syntaxRes.durationMs,
           stdout: syntaxRes.stdout,
           stderr: syntaxRes.stderr,
-          errorDetails: syntaxRes.passed ? [] : [syntaxRes.stderr || "TypeScript typecheck failed in sandbox"],
+          errorDetails: syntaxRes.passed
+            ? []
+            : [syntaxRes.stderr || "Syntax/AST validation failed in sandbox"],
         });
         if (!syntaxRes.passed) {
           syntaxValid = false;
-          failures.push("TypeScript typecheck / syntax validation failed in Docker sandbox");
+          failures.push("Syntax/AST validation failed in Docker sandbox");
         }
       }
 
-      // Stage 3: Lint
+      // Stage 3: Static Analysis (§21, §35)
+      let staticAnalysisPassed = true;
+      if (options.runStaticAnalysis ?? true) {
+        const staticCmd = options.staticAnalysisCommand ?? "npx tsc --noEmit";
+        const staticRes = await container.executeCommand(staticCmd);
+        stages.push({
+          stage: "STATIC_ANALYSIS",
+          passed: staticRes.passed,
+          exitCode: staticRes.exitCode,
+          durationMs: staticRes.durationMs,
+          stdout: staticRes.stdout,
+          stderr: staticRes.stderr,
+          errorDetails: staticRes.passed
+            ? []
+            : [staticRes.stderr || "Static analysis stage failed in sandbox"],
+        });
+        if (!staticRes.passed) {
+          staticAnalysisPassed = false;
+          failures.push("Static analysis typecheck failed in Docker sandbox");
+        }
+      }
+
+      // Stage 4: Lint
       let lintPassed = true;
       if (options.runLint ?? true) {
         const lintCmd = options.lintCommand ?? "npx eslint . --max-warnings=0";
@@ -148,7 +202,7 @@ export class VerificationRunner {
         }
       }
 
-      // Stage 4: Tests
+      // Stage 5: Tests
       let testsPassed = true;
       if (options.runTests ?? true) {
         const testCmd = options.testCommand ?? "npx vitest run";
@@ -177,7 +231,7 @@ export class VerificationRunner {
         id: randomUUID(),
         patchApplied: true,
         syntaxValid,
-        staticAnalysisPassed: lintPassed,
+        staticAnalysisPassed,
         lintPassed,
         testsPassed,
         stages,
@@ -220,57 +274,81 @@ export class VerificationRunner {
       };
     }
 
-    // Stage 2: Syntax / AST (tsc --noEmit)
+    let overall: VerificationStatus = "failed";
     let syntaxValid = true;
-    if (options.runSyntaxCheck ?? true) {
-      const syntaxRes = await this.executeStageCommand("SYNTAX_AST", "npx tsc --noEmit", context);
-      stages.push(syntaxRes);
-      if (!syntaxRes.passed) {
-        syntaxValid = false;
-        failures.push("TypeScript typecheck / syntax validation failed");
-      }
-    }
-
-    // Stage 3: Lint (eslint)
+    let staticAnalysisPassed = true;
     let lintPassed = true;
-    if (options.runLint ?? true) {
-      const lintCmd = options.lintCommand ?? "npx eslint . --max-warnings=0";
-      const lintRes = await this.executeStageCommand("LINT", lintCmd, context);
-      stages.push(lintRes);
-      if (!lintRes.passed) {
-        lintPassed = false;
-        failures.push("Linter checks failed");
-      }
-    }
-
-    // Stage 4: Tests (vitest)
     let testsPassed = true;
-    if (options.runTests ?? true) {
-      const testCmd = options.testCommand ?? "npx vitest run";
-      const testRes = await this.executeStageCommand("TESTS", testCmd, context);
-      stages.push(testRes);
-      if (!testRes.passed) {
-        testsPassed = false;
-        failures.push("Test suite execution failed");
+
+    try {
+      // Stage 2: Syntax / AST validation
+      if (options.runSyntaxCheck ?? true) {
+        const syntaxCmd = options.syntaxCheckCommand ?? "npx tsc --noEmit";
+        const syntaxRes = await this.executeStageCommand("SYNTAX_AST", syntaxCmd, context);
+        stages.push(syntaxRes);
+        if (!syntaxRes.passed) {
+          syntaxValid = false;
+          failures.push("Syntax/AST validation failed");
+        }
+      }
+
+      // Stage 3: Static Analysis (§21, §35)
+      if (options.runStaticAnalysis ?? true) {
+        const staticCmd = options.staticAnalysisCommand ?? "npx tsc --noEmit";
+        const staticRes = await this.executeStageCommand("STATIC_ANALYSIS", staticCmd, context);
+        stages.push(staticRes);
+        if (!staticRes.passed) {
+          staticAnalysisPassed = false;
+          failures.push("Static analysis typecheck failed");
+        }
+      }
+
+      // Stage 4: Lint (eslint)
+      if (options.runLint ?? true) {
+        const lintCmd = options.lintCommand ?? "npx eslint . --max-warnings=0";
+        const lintRes = await this.executeStageCommand("LINT", lintCmd, context);
+        stages.push(lintRes);
+        if (!lintRes.passed) {
+          lintPassed = false;
+          failures.push("Linter checks failed");
+        }
+      }
+
+      // Stage 5: Tests (vitest)
+      if (options.runTests ?? true) {
+        const testCmd = options.testCommand ?? "npx vitest run";
+        const testRes = await this.executeStageCommand("TESTS", testCmd, context);
+        stages.push(testRes);
+        if (!testRes.passed) {
+          testsPassed = false;
+          failures.push("Test suite execution failed");
+        }
+      }
+
+      overall = "verified";
+      if (failures.length > 0) {
+        overall = syntaxValid && patchResult.passed ? "partially_verified" : "failed";
+      }
+
+      return {
+        id: randomUUID(),
+        patchApplied: true,
+        syntaxValid,
+        staticAnalysisPassed,
+        lintPassed,
+        testsPassed,
+        stages,
+        failures,
+        overall,
+        verifiedAt: new Date().toISOString(),
+      };
+    } finally {
+      // Host Safety Guarantee (§5.6, §19):
+      // Always roll back candidate patch if verification failed or threw an error,
+      // preventing patch N+1 from compounding corruption onto unverified patch N.
+      if (overall !== "verified") {
+        await rollbackPatch(diff, context);
       }
     }
-
-    let overall: VerificationStatus = "verified";
-    if (failures.length > 0) {
-      overall = syntaxValid && patchResult.passed ? "partially_verified" : "failed";
-    }
-
-    return {
-      id: randomUUID(),
-      patchApplied: true,
-      syntaxValid,
-      staticAnalysisPassed: lintPassed,
-      lintPassed,
-      testsPassed,
-      stages,
-      failures,
-      overall,
-      verifiedAt: new Date().toISOString(),
-    };
   }
 }

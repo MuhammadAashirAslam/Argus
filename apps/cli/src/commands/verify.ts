@@ -1,5 +1,5 @@
 import fs from "node:fs/promises";
-import { VerificationRunner } from "@argus/verifier";
+import { VerificationRunner, isDockerAvailable } from "@argus/verifier";
 import type { VerificationResult } from "@argus/agent-core";
 
 export interface VerifyPatchOptions {
@@ -22,7 +22,8 @@ export async function runVerifyPatch(
       timeoutMs: options.timeoutMs ?? 60000,
     },
     {
-      useSandbox: options.useSandbox ?? false,
+      useSandbox:
+        options.useSandbox !== undefined ? Boolean(options.useSandbox) : await isDockerAvailable(),
     },
   );
 

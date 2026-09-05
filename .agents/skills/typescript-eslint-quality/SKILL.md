@@ -7,7 +7,9 @@ description: >-
 # TypeScript & ESLint Quality Skill
 
 ## Purpose & PRD Alignment (§21)
+
 This skill governs:
+
 1. **ARGUS Codebase Quality**: Strict TypeScript compiler checks (`tsc --noEmit`) and ESLint rules across all packages and agents.
 2. **Verification Agent Pipeline**: Running ESLint and `tsc` as the "Syntax/AST" and "Lint" pipeline stages against target repositories.
 
@@ -25,7 +27,9 @@ All `tsconfig.json` configurations in ARGUS must inherit from strict compiler op
 - `moduleResolution: "bundler"` or `"NodeNext"`
 
 ### Typecheck Command
+
 To verify type correctness across the monorepo without emitting JavaScript:
+
 ```sh
 pnpm turbo run typecheck
 # or package-level:
@@ -49,6 +53,7 @@ npx tsc --noEmit
 ## 3. Verification Sandbox Lint Stage (§21)
 
 When the Verification Agent checks a target repository:
+
 1. Run ESLint with JSON format: `npx eslint . --format=json --output-file=lint-results.json`.
 2. Convert lint errors/warnings into `Evidence` objects with `type: "STATIC_ANALYSIS"`.
 3. Highlight exact file paths, start lines, and suggested rule fixes.

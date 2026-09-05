@@ -1,7 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { ConfigDebtEngine } from "../src/engine.js";
-import { CD001_UnpinnedAction, CD003_HardcodedSecrets } from "../../../rules/github-actions/index.js";
-import { CD101_FloatingBaseImage, CD105_RootExecution } from "../../../rules/docker/index.js";
+import {
+  CD001_UnpinnedAction,
+  CD003_HardcodedSecrets,
+  CD101_FloatingBaseImage,
+  CD105_RootExecution,
+} from "@argus/rules";
 
 describe("ConfigDebtEngine with deterministic rules", () => {
   it("detects unpinned GitHub action (CD001)", () => {

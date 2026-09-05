@@ -12,17 +12,35 @@
     "typecheck": "turbo run typecheck",
     "format": "prettier --write \"**/*.{ts,tsx,js,mjs,json,md,yml,yaml}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,mjs,json,md,yml,yaml}\"",
-    "argus": "node apps/cli/dist/bin.js"
+    "argus": "node apps/cli/dist/bin.js",
+    "prepare": "husky"
   },
   "bin": {
     "argus": "./apps/cli/dist/bin.js"
   },
   "devDependencies": {
+    "@argus/agent-analyzer": "workspace:*",
+    "@argus/agent-configuration": "workspace:*",
+    "@argus/agent-core": "workspace:*",
+    "@argus/agent-historian": "workspace:*",
+    "@argus/agent-investigator": "workspace:*",
+    "@argus/agent-patch": "workspace:*",
+    "@argus/agent-verifier": "workspace:*",
+    "@argus/cli": "workspace:*",
+    "@argus/config-engine": "workspace:*",
+    "@argus/orchestrator": "workspace:*",
+    "@argus/rules": "workspace:*",
+    "@argus/shared": "workspace:*",
+    "@argus/trajectory": "workspace:*",
+    "@argus/verifier": "workspace:*",
     "@types/node": "^22.10.1",
     "eslint": "^9.16.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.5.0",
     "prettier": "^3.4.2",
     "turbo": "^2.3.3",
     "typescript": "^5.7.2",
+    "typescript-eslint": "^8.69.0",
     "vitest": "^2.1.8"
   },
   "engines": {

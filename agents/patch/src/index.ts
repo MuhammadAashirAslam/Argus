@@ -1,5 +1,12 @@
 import { randomUUID } from "node:crypto";
-import type { ArgusAgent, AgentEnvelope, AgentContext, Finding, Hypothesis, VerificationResult } from "@argus/agent-core";
+import type {
+  ArgusAgent,
+  AgentEnvelope,
+  AgentContext,
+  Finding,
+  Hypothesis,
+  VerificationResult,
+} from "@argus/agent-core";
 import { LLMClient, executeLLMWithTools, GROQ_MODELS, type LLMMessage } from "@argus/shared";
 import { RepoReadFileTool, RepoSearchTool } from "@argus/git";
 
@@ -10,14 +17,14 @@ export class PatchAgent implements ArgusAgent {
 
   public async run(input: AgentEnvelope, context: AgentContext): Promise<AgentEnvelope> {
     context.logger.info(`[${this.role}] Starting patch generation for run ${context.runId}`);
-    
+
     const payload = input.payload as any;
     const objective = payload?.objective ?? "unknown";
     const findings: Finding[] = payload?.findings ?? [];
     const hypotheses: Hypothesis[] = payload?.hypotheses ?? [];
     const previousVerification: VerificationResult | undefined = payload?.previousVerification;
 
-    let systemPrompt = `You are the ARGUS Patch Agent.
+    const systemPrompt = `You are the ARGUS Patch Agent.
 Your objective is to generate a fix for the problem based on the investigation findings and analysis hypotheses.
 You MUST output your patch as a unified diff format.
 You MUST respond with a JSON object in the exact format:
@@ -48,10 +55,7 @@ Hypotheses: ${JSON.stringify(hypotheses, null, 2)}
       { role: "user", content: userContent },
     ];
 
-    const tools = [
-      RepoReadFileTool,
-      RepoSearchTool,
-    ];
+    const tools = [RepoReadFileTool, RepoSearchTool];
 
     try {
       const response = await executeLLMWithTools(messages, {
@@ -69,7 +73,7 @@ Hypotheses: ${JSON.stringify(hypotheses, null, 2)}
       const content = response.content.trim();
       const jsonStart = content.indexOf("{");
       const jsonEnd = content.lastIndexOf("}");
-      
+
       let resPayload: any;
       try {
         if (jsonStart !== -1 && jsonEnd !== -1) {

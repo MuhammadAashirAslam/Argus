@@ -6,8 +6,10 @@ export const BENCHMARK_DATASET: BenchmarkCase[] = [
     name: "Supply Chain Unpinned GitHub Action",
     repository: "octocat/hello-world",
     commitHash: "7fd1a60b01f91b314f59955a4e4d4e80d8edf11d",
-    issueDescription: "Actions in CI workflow are using mutable tags instead of immutable commit hashes.",
-    expectedProblem: "Unpinned action uses: actions/checkout@v2 is vulnerable to supply-chain attack.",
+    issueDescription:
+      "Actions in CI workflow are using mutable tags instead of immutable commit hashes.",
+    expectedProblem:
+      "Unpinned action uses: actions/checkout@v2 is vulnerable to supply-chain attack.",
     relevantFiles: [".github/workflows/ci.yml"],
     expectedDiagnosis: "Pin actions to full 40-character commit SHAs (Rule CD001).",
     verificationRequirements: ["CD001"],

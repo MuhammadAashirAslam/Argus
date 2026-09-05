@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { GetPullRequestTool, GetIssuesTool } from "../src/tools_read.js";
 import { CreateReviewTool } from "../src/tools_write.js";
+import { CIRunTestsTool, CIRunLinterTool } from "../src/ci-tools.js";
 import { GITHUB_TOOL_VERSION } from "../src/types.js";
 import type { ToolExecutionContext } from "@argus/mcp-server";
 
@@ -14,6 +15,8 @@ describe("GitHub Tools", () => {
   it("declares exact semver tool version (§17)", () => {
     expect(GetPullRequestTool.version).toBe(GITHUB_TOOL_VERSION);
     expect(CreateReviewTool.version).toBe("1.0.0");
+    expect(CIRunTestsTool.version).toBe(GITHUB_TOOL_VERSION);
+    expect(CIRunLinterTool.version).toBe(GITHUB_TOOL_VERSION);
   });
 
   it("validates input schema for get_pull_request", async () => {
@@ -39,6 +42,29 @@ describe("GitHub Tools", () => {
 
     expect(res.success).toBe(false);
     expect(res.error?.code).toBe("AUTH_REQUIRED");
+
+    if (originalToken) {
+      process.env["GITHUB_TOKEN"] = originalToken;
+    }
+  });
+
+  it("requires GITHUB_TOKEN for CI run tools", async () => {
+    const originalToken = process.env["GITHUB_TOKEN"];
+    delete process.env["GITHUB_TOKEN"];
+
+    const testRes = await CIRunTestsTool.execute(
+      { owner: "MuhammadAashirAslam", repo: "Argus", ref: "main" },
+      ctx,
+    );
+    expect(testRes.success).toBe(false);
+    expect(testRes.error?.code).toBe("AUTH_REQUIRED");
+
+    const lintRes = await CIRunLinterTool.execute(
+      { owner: "MuhammadAashirAslam", repo: "Argus", ref: "main" },
+      ctx,
+    );
+    expect(lintRes.success).toBe(false);
+    expect(lintRes.error?.code).toBe("AUTH_REQUIRED");
 
     if (originalToken) {
       process.env["GITHUB_TOKEN"] = originalToken;

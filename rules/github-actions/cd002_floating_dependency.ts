@@ -1,10 +1,10 @@
-import type { DebtRule, ParsedConfigContext } from "@argus/config-engine";
+import type { DebtRule, ParsedConfigContext } from "@argus/agent-core";
 import type { DebtFinding } from "@argus/agent-core";
 
 const UNPINNED_INSTALL_PATTERNS = [
   /npm\s+(?:install|i)\s+(?!.*(?:--save-exact|package\.json|package-lock\.json|npm-shrinkwrap))([a-zA-Z0-9@/_-]+)/i,
-  /pip\s+install\s+(?!.*(?:-r\s+|requirements\.txt|setup\.py))([a-zA-Z0-9_\-]+)(?!\s*==)/i,
-  /gem\s+install\s+([a-zA-Z0-9_\-]+)(?!\s*-v)/i,
+  /pip\s+install\s+(?!.*(?:-r\s+|requirements\.txt|setup\.py))([a-zA-Z0-9_-]+)(?!\s*==)/i,
+  /gem\s+install\s+([a-zA-Z0-9_-]+)(?!\s*-v)/i,
 ];
 
 export const CD002_FloatingDependency: DebtRule = {
@@ -19,7 +19,12 @@ export const CD002_FloatingDependency: DebtRule = {
 
     context.lines.forEach((line, index) => {
       const trimmed = line.trim();
-      if (!trimmed.startsWith("run:") && !trimmed.includes("npm ") && !trimmed.includes("pip ") && !trimmed.includes("gem ")) {
+      if (
+        !trimmed.startsWith("run:") &&
+        !trimmed.includes("npm ") &&
+        !trimmed.includes("pip ") &&
+        !trimmed.includes("gem ")
+      ) {
         return;
       }
 

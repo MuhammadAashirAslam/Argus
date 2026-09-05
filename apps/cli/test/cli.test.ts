@@ -111,8 +111,14 @@ describe("Developer CLI Commands (§23)", () => {
     expect(Array.isArray(findings)).toBe(true);
   });
 
-  it("runs analyze command", async () => {
+  it("runs analyze command and persists trajectory for trace command", async () => {
     const state = await runAnalyze(process.cwd());
     expect(state.status).toBe("completed");
+
+    // Test that the persisted run can be loaded and formatted by runTrace (§23)
+    const { runTrace } = await import("../src/commands/trace.js");
+    const traceOutput = await runTrace(state.runId, process.cwd());
+    expect(traceOutput).toContain("ARGUS EXECUTION TIMELINE");
+    expect(traceOutput).toContain("INVESTIGATOR");
   });
 });

@@ -1,4 +1,4 @@
-import type { DebtRule, ParsedConfigContext } from "@argus/config-engine";
+import type { DebtRule, ParsedConfigContext } from "@argus/agent-core";
 import type { DebtFinding } from "@argus/agent-core";
 
 export const CD105_RootExecution: DebtRule = {
@@ -19,14 +19,18 @@ export const CD105_RootExecution: DebtRule = {
       }
     }
 
-    if (!hasUserInstruction && context.lines.some((l) => /^CMD\s+|^ENTRYPOINT\s+/i.test(l.trim()))) {
+    if (
+      !hasUserInstruction &&
+      context.lines.some((l) => /^CMD\s+|^ENTRYPOINT\s+/i.test(l.trim()))
+    ) {
       findings.push({
         ruleId: "CD105",
         title: "Unnecessary Root Execution",
         severity: "medium",
         file: context.filePath,
         evidence: "Missing non-root USER instruction before ENTRYPOINT/CMD",
-        recommendation: "Create and switch to a non-privileged user (USER appuser or node) to avoid running containers with root privileges.",
+        recommendation:
+          "Create and switch to a non-privileged user (USER appuser or node) to avoid running containers with root privileges.",
       });
     }
 

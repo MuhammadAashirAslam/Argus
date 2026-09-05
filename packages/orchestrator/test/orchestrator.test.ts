@@ -23,11 +23,21 @@ function createMockAgent(role: string, payloadType: string, payload: any): Argus
 describe("Orchestrator state machine", () => {
   it("executes the full investigation and patching loop", async () => {
     const orchestrator = new Orchestrator();
-    
-    const investigator = createMockAgent("INVESTIGATOR", "INVESTIGATION_RESULT", { relevant_files: ["file.ts"], findings: [] });
-    const analyzer = createMockAgent("ANALYZER", "ANALYSIS_RESULT", { hypotheses: [], findings: [] });
-    const patcher = createMockAgent("PATCH", "PATCH_CANDIDATE", { proposedChange: { diff: "some patch", explanation: "fix" } });
-    const verifier = createMockAgent("VERIFIER", "VERIFICATION_RESULT", { verificationResult: { overall: "verified", stages: [] } });
+
+    const investigator = createMockAgent("INVESTIGATOR", "INVESTIGATION_RESULT", {
+      relevant_files: ["file.ts"],
+      findings: [],
+    });
+    const analyzer = createMockAgent("ANALYZER", "ANALYSIS_RESULT", {
+      hypotheses: [],
+      findings: [],
+    });
+    const patcher = createMockAgent("PATCH", "PATCH_CANDIDATE", {
+      proposedChange: { diff: "some patch", explanation: "fix" },
+    });
+    const verifier = createMockAgent("VERIFIER", "VERIFICATION_RESULT", {
+      verificationResult: { overall: "verified", stages: [] },
+    });
 
     orchestrator.registerAgent(investigator);
     orchestrator.registerAgent(analyzer);
@@ -51,7 +61,7 @@ describe("Orchestrator state machine", () => {
 
   it("handles verification failure by looping back to patch", async () => {
     const orchestrator = new Orchestrator();
-    
+
     const patcher = {
       id: "patcher",
       role: "PATCH",
@@ -63,7 +73,7 @@ describe("Orchestrator state machine", () => {
         runId: "test",
         timestamp: new Date().toISOString(),
         payloadType: "PATCH_CANDIDATE",
-        payload: { proposedChange: { diff: "bad patch", explanation: "fix" } }
+        payload: { proposedChange: { diff: "bad patch", explanation: "fix" } },
       } as AgentEnvelope),
     };
 
@@ -81,18 +91,22 @@ describe("Orchestrator state machine", () => {
           runId: "test",
           timestamp: new Date().toISOString(),
           payloadType: "VERIFICATION_RESULT",
-          payload: { 
-            verificationResult: { 
+          payload: {
+            verificationResult: {
               overall: verifyCount >= 2 ? "verified" : "failed", // fails first time, succeeds second
-              stages: [] 
-            } 
-          }
+              stages: [],
+            },
+          },
         };
       }),
     };
 
-    orchestrator.registerAgent(createMockAgent("INVESTIGATOR", "INVESTIGATION_RESULT", { relevant_files: [], findings: [] }));
-    orchestrator.registerAgent(createMockAgent("ANALYZER", "ANALYSIS_RESULT", { hypotheses: [], findings: [] }));
+    orchestrator.registerAgent(
+      createMockAgent("INVESTIGATOR", "INVESTIGATION_RESULT", { relevant_files: [], findings: [] }),
+    );
+    orchestrator.registerAgent(
+      createMockAgent("ANALYZER", "ANALYSIS_RESULT", { hypotheses: [], findings: [] }),
+    );
     orchestrator.registerAgent(patcher);
     orchestrator.registerAgent(verifier);
 

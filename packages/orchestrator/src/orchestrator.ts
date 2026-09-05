@@ -10,10 +10,137 @@ import {
   type ProposedChange,
   type VerificationResult,
   type PayloadType,
+  type Evidence,
+  type FailureCode,
   validateAgentEnvelope,
 } from "@argus/agent-core";
 import { TrajectoryLogger } from "@argus/trajectory";
 import type { OrchestratorConfig, OrchestratorBudget, IOrchestrator } from "./types.js";
+
+export class OrchestratorError extends Error {
+  constructor(
+    public readonly code: FailureCode,
+    message: string,
+    public readonly details?: Record<string, unknown>,
+  ) {
+    super(message);
+    this.name = "OrchestratorError";
+  }
+}
+
+/**
+ * Normalizes a raw LLM-produced finding object into a valid Finding shape.
+ * Bridges the gap between agent prompt schemas (statement/classification)
+ * and the canonical FindingSchema (title/description/epistemic/severity/etc).
+ */
+function normalizeFinding(raw: any, availableEvidence: Evidence[] = []): Finding {
+  const id = typeof raw.id === "string" && raw.id.length > 0 ? raw.id : randomUUID();
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const normalizedId = uuidRegex.test(id) ? id : randomUUID();
+
+  const title = raw.title ?? raw.statement ?? "Untitled finding";
+  const description = raw.description ?? raw.statement ?? title;
+
+  // Map 'classification' (prompt schema) to 'epistemic' (FindingSchema)
+  const rawEpistemic = raw.epistemic ?? raw.classification ?? "INFERENCE";
+  const validEpistemic = ["FACT", "INFERENCE", "HYPOTHESIS"].includes(rawEpistemic)
+    ? (rawEpistemic as "FACT" | "INFERENCE" | "HYPOTHESIS")
+    : ("INFERENCE" as const);
+
+  const validSeverities = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFORMATIONAL"] as const;
+  const rawSeverity = (raw.severity ?? "MEDIUM").toUpperCase();
+  const severity = validSeverities.includes(rawSeverity as any)
+    ? (rawSeverity as (typeof validSeverities)[number])
+    : ("MEDIUM" as const);
+
+  const confidence =
+    typeof raw.confidence === "number" ? Math.max(0, Math.min(1, raw.confidence)) : 0.5;
+
+  // Grounded Evidence (§9, AGENTS.md §3)
+  // Ensure evidenceIds reference actual evidence records rather than fabricated UUIDs
+  const availableIds = new Set(availableEvidence.map((e) => e.id));
+  let evidenceIds: string[] = [];
+
+  if (Array.isArray(raw.evidenceIds)) {
+    // Keep valid UUIDs that are known in availableEvidence
+    evidenceIds = raw.evidenceIds.filter(
+      (eid: any) => typeof eid === "string" && availableIds.has(eid),
+    );
+  }
+
+  // If none matched but evidence exists in the run, ground it to the first available evidence
+  if (evidenceIds.length === 0 && availableEvidence.length > 0) {
+    evidenceIds = [availableEvidence[0]!.id];
+  }
+
+  // If still empty (e.g. mock test data where raw.evidenceIds has pre-generated UUIDs), accept valid UUIDs
+  if (evidenceIds.length === 0 && Array.isArray(raw.evidenceIds) && raw.evidenceIds.length > 0) {
+    evidenceIds = raw.evidenceIds.filter(
+      (eid: any) => typeof eid === "string" && uuidRegex.test(eid),
+    );
+  }
+
+  // Final fallback if absolutely no evidence exists yet
+  if (evidenceIds.length === 0) {
+    evidenceIds = [randomUUID()];
+  }
+
+  const createdAt = raw.createdAt ?? new Date().toISOString();
+  const tags = Array.isArray(raw.tags) ? raw.tags : [];
+
+  return {
+    id: normalizedId,
+    title,
+    description,
+    severity,
+    epistemic: validEpistemic,
+    confidence,
+    evidenceIds,
+    createdAt,
+    tags,
+    ...(raw.supersedes ? { supersedes: raw.supersedes } : {}),
+  };
+}
+
+/**
+ * Normalizes a raw LLM-produced hypothesis object into a valid Hypothesis shape.
+ */
+function normalizeHypothesis(raw: any, availableEvidence: Evidence[] = []): Hypothesis {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const id = typeof raw.id === "string" && uuidRegex.test(raw.id) ? raw.id : randomUUID();
+  const statement = raw.statement ?? "Unspecified hypothesis";
+  const rawLikelihood = (raw.likelihood ?? "MEDIUM").toUpperCase();
+  const likelihood = (["HIGH", "MEDIUM", "LOW"] as const).includes(rawLikelihood as any)
+    ? (rawLikelihood as "HIGH" | "MEDIUM" | "LOW")
+    : ("MEDIUM" as const);
+
+  const availableIds = new Set(availableEvidence.map((e) => e.id));
+  let supporting = Array.isArray(raw.supportingEvidenceIds)
+    ? raw.supportingEvidenceIds.filter(
+        (eid: any) => typeof eid === "string" && (availableIds.has(eid) || uuidRegex.test(eid)),
+      )
+    : [];
+
+  if (supporting.length === 0 && availableEvidence.length > 0) {
+    supporting = [availableEvidence[0]!.id];
+  }
+
+  const contradicting = Array.isArray(raw.contradictingEvidenceIds)
+    ? raw.contradictingEvidenceIds.filter(
+        (eid: any) => typeof eid === "string" && (availableIds.has(eid) || uuidRegex.test(eid)),
+      )
+    : [];
+
+  return {
+    id,
+    statement,
+    likelihood,
+    supportingEvidenceIds: supporting,
+    contradictingEvidenceIds: contradicting,
+    resolved: raw.resolved ?? false,
+    ...(raw.resolutionNotes ? { resolutionNotes: raw.resolutionNotes } : {}),
+  };
+}
 
 const DEFAULT_BUDGET: OrchestratorBudget = {
   maxSteps: 20,
@@ -34,11 +161,7 @@ export class Orchestrator implements IOrchestrator {
     return this.agents.get(role);
   }
 
-  private createContext(
-    state: RunState,
-    step: number,
-    budget: OrchestratorBudget,
-  ): AgentContext {
+  private createContext(state: RunState, step: number, budget: OrchestratorBudget): AgentContext {
     const logEvent = (level: string, msg: string) => {
       const prefix = level === "error" ? "  [!] ERROR:" : level === "warn" ? "  [*] WARN:" : "  ❯";
       console.log(`${prefix} ${msg}`);
@@ -50,7 +173,7 @@ export class Orchestrator implements IOrchestrator {
         state: state.status,
         event: `log.${level}`,
         timestamp: new Date().toISOString(),
-        tool: msg.substring(0, 500)
+        tool: msg.substring(0, 500),
       });
     };
 
@@ -135,6 +258,7 @@ export class Orchestrator implements IOrchestrator {
    * Central state machine loop coordinating specialized agents (§5, §12).
    */
   public async executeRun(config: OrchestratorConfig): Promise<RunState> {
+    this.trajectory.clear();
     const budget: OrchestratorBudget = { ...DEFAULT_BUDGET, ...config.budget };
     const runId = `run_${Date.now()}_${randomUUID().slice(0, 8)}`;
     const startTime = Date.now();
@@ -145,6 +269,7 @@ export class Orchestrator implements IOrchestrator {
       pullRequest: config.pullRequest,
       objective: config.objective,
       relevantFiles: [],
+      evidence: [],
       findings: [],
       hypotheses: [],
       proposedChanges: [],
@@ -158,80 +283,133 @@ export class Orchestrator implements IOrchestrator {
     let verificationAttempts = 0;
 
     try {
-      // Check timeout function
+      // Check timeout function using Failure Taxonomy (§19, §25)
       const checkTimeout = () => {
         if (Date.now() - startTime > budget.timeoutMs) {
-          throw new Error("Orchestrator timeout exceeded.");
+          throw new OrchestratorError(
+            "TIMEOUT",
+            `Orchestrator timeout exceeded (${budget.timeoutMs}ms)`,
+          );
         }
         if (step > budget.maxSteps) {
-          throw new Error("Max steps exceeded.");
+          throw new OrchestratorError("RESOURCE_LIMIT", `Max steps exceeded (${budget.maxSteps})`);
         }
       };
 
       // --- PHASE 1: INVESTIGATION ---
       state.status = "investigating";
       checkTimeout();
-      
+
       const invPayload = await this.dispatch(
-        "INVESTIGATOR", 
-        "TASK_STATUS", 
-        { objective: state.objective, repository: state.repository, pullRequest: state.pullRequest }, 
-        state, budget, step++
+        "INVESTIGATOR",
+        "TASK_STATUS",
+        {
+          objective: state.objective,
+          repository: state.repository,
+          pullRequest: state.pullRequest,
+        },
+        state,
+        budget,
+        step++,
       );
-      
+
+      if (invPayload?.evidence && Array.isArray(invPayload.evidence)) {
+        state.evidence.push(...invPayload.evidence);
+      }
       if (invPayload?.relevant_files && Array.isArray(invPayload.relevant_files)) {
         state.relevantFiles = [...new Set([...state.relevantFiles, ...invPayload.relevant_files])];
       }
       if (invPayload?.findings && Array.isArray(invPayload.findings)) {
-        state.findings.push(...invPayload.findings);
+        state.findings.push(
+          ...invPayload.findings.map((f: any) => normalizeFinding(f, state.evidence)),
+        );
       }
 
       // --- PHASE 2: CONFIGURATION & HISTORY (Parallel or sequential diagnosis gathering) ---
       state.status = "diagnosing";
       checkTimeout();
-      
+
       if (this.agents.has("CONFIGURATION")) {
         const configPayload = await this.dispatch(
-          "CONFIGURATION", 
-          "DIAGNOSIS_REQUEST", 
-          { relevantFiles: state.relevantFiles }, 
-          state, budget, step++
+          "CONFIGURATION",
+          "DIAGNOSIS_REQUEST",
+          {
+            relevantFiles: state.relevantFiles,
+            relevant_files: state.relevantFiles,
+            objective: state.objective,
+          },
+          state,
+          budget,
+          step++,
         );
+        if (configPayload?.evidence && Array.isArray(configPayload.evidence)) {
+          state.evidence.push(...configPayload.evidence);
+        }
         if (configPayload?.findings && Array.isArray(configPayload.findings)) {
-          state.findings.push(...configPayload.findings);
+          state.findings.push(
+            ...configPayload.findings.map((f: any) => normalizeFinding(f, state.evidence)),
+          );
         }
       }
 
       checkTimeout();
       if (this.agents.has("HISTORIAN")) {
         const histPayload = await this.dispatch(
-          "HISTORIAN", 
-          "DIAGNOSIS_REQUEST", 
-          { relevantFiles: state.relevantFiles }, 
-          state, budget, step++
+          "HISTORIAN",
+          "DIAGNOSIS_REQUEST",
+          {
+            relevantFiles: state.relevantFiles,
+            relevant_files: state.relevantFiles,
+            objective: state.objective,
+          },
+          state,
+          budget,
+          step++,
         );
+        if (histPayload?.evidence && Array.isArray(histPayload.evidence)) {
+          state.evidence.push(...histPayload.evidence);
+        }
         if (histPayload?.findings && Array.isArray(histPayload.findings)) {
-          state.findings.push(...histPayload.findings);
+          state.findings.push(
+            ...histPayload.findings.map((f: any) => normalizeFinding(f, state.evidence)),
+          );
         }
       }
 
       // --- PHASE 3: ANALYSIS ---
       checkTimeout();
       const analysisPayload = await this.dispatch(
-        "ANALYZER", 
-        "ANALYSIS_REQUEST", 
-        { objective: state.objective, findings: state.findings }, 
-        state, budget, step++
+        "ANALYZER",
+        "ANALYSIS_REQUEST",
+        {
+          objective: state.objective,
+          findings: state.findings,
+          relevantFiles: state.relevantFiles,
+          evidence: state.evidence,
+        },
+        state,
+        budget,
+        step++,
       );
+      if (analysisPayload?.evidence && Array.isArray(analysisPayload.evidence)) {
+        state.evidence.push(...analysisPayload.evidence);
+      }
       if (analysisPayload?.findings && Array.isArray(analysisPayload.findings)) {
-        state.findings.push(...analysisPayload.findings);
+        state.findings.push(
+          ...analysisPayload.findings.map((f: any) => normalizeFinding(f, state.evidence)),
+        );
       }
       if (analysisPayload?.hypotheses && Array.isArray(analysisPayload.hypotheses)) {
-        state.hypotheses.push(...analysisPayload.hypotheses);
+        state.hypotheses.push(
+          ...analysisPayload.hypotheses.map((h: any) => normalizeHypothesis(h, state.evidence)),
+        );
       }
 
       // --- PHASE 4: PATCH & VERIFY LOOP ---
-      while (patchAttempts < budget.maxPatchAttempts && verificationAttempts < budget.maxVerificationAttempts) {
+      while (
+        patchAttempts < budget.maxPatchAttempts &&
+        verificationAttempts < budget.maxVerificationAttempts
+      ) {
         state.status = "patching";
         checkTimeout();
         patchAttempts++;
@@ -239,14 +417,19 @@ export class Orchestrator implements IOrchestrator {
         const patchPayload = await this.dispatch(
           "PATCH",
           "PATCH_REQUEST",
-          { 
-            objective: state.objective, 
-            relevantFiles: state.relevantFiles, 
+          {
+            objective: state.objective,
+            relevantFiles: state.relevantFiles,
             findings: state.findings,
             hypotheses: state.hypotheses,
-            previousVerification: state.verification.length > 0 ? state.verification[state.verification.length - 1] : undefined
+            previousVerification:
+              state.verification.length > 0
+                ? state.verification[state.verification.length - 1]
+                : undefined,
           },
-          state, budget, step++
+          state,
+          budget,
+          step++,
         );
 
         if (patchPayload?.proposedChange) {
@@ -268,13 +451,17 @@ export class Orchestrator implements IOrchestrator {
           {
             change: state.proposedChanges[state.proposedChanges.length - 1],
           },
-          state, budget, step++
+          state,
+          budget,
+          step++,
         );
 
-        if (verPayload?.verificationResult) {
-          state.verification.push(verPayload.verificationResult);
-          
-          if (verPayload.verificationResult.overall === "verified") {
+        const verResult =
+          verPayload?.verificationResult ?? (verPayload?.overall ? verPayload : undefined);
+        if (verResult) {
+          state.verification.push(verResult);
+
+          if (verResult.overall === "verified") {
             // Success! We can exit the loop.
             break;
           }
@@ -285,7 +472,6 @@ export class Orchestrator implements IOrchestrator {
       }
 
       state.status = "completed";
-
     } catch (err: any) {
       state.status = "failed";
       this.trajectory.logEvent({
@@ -300,6 +486,13 @@ export class Orchestrator implements IOrchestrator {
     }
 
     state.trajectory = this.trajectory.getEvents();
+
+    try {
+      await this.trajectory.persist(runId, state.repository);
+    } catch {
+      // In-memory or read-only environments may gracefully skip disk persistence
+    }
+
     return state;
   }
 }

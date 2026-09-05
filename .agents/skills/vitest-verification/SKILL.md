@@ -7,7 +7,9 @@ description: >-
 # Vitest Testing & Verification Runner Skill
 
 ## Purpose & PRD Alignment (§7.6, §21, §35)
+
 Vitest serves two critical roles in ARGUS:
+
 1. **Internal Unit & Integration Tests**: Testing ARGUS packages (`agent-core`, `orchestrator`, `storage`, `mcp-tools`).
 2. **Verification Agent Engine**: Running sandboxed test suites against target repositories in the verification pipeline stage to validate findings and test fixes (§7.6, §35).
 
@@ -55,6 +57,7 @@ describe("AgentEnvelopeSchema", () => {
 ## 2. Verification Sandbox Test Execution (§35)
 
 When the Verification Agent executes tests inside an isolated sandbox against a target repository:
+
 1. Generate test harness isolated in a temporary directory or container.
 2. Execute Vitest with JSON reporter: `npx vitest run --reporter=json --outputFile=test-results.json`.
 3. Ingest the JSON output and construct `Evidence` objects with `type: "TEST_OUTPUT"`.

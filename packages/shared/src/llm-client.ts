@@ -38,18 +38,21 @@ export interface LLMResponse {
   durationMs: number;
   finishReason: string;
   toolCalls?: any[];
+  capturedEvidence?: any[];
 }
 
 // ── Models ─────────────────────────────────────────────────
 
 export const GROQ_MODELS = {
-  /** Fast / Instant reasoning (Investigator, Analyzer, Patch) */
+  /** Large / Versatile reasoning (Investigator, Analyzer, Patch) */
   get LARGE(): string {
-    return process.env["GROQ_LARGE_MODEL"] ?? process.env["GROQ_MODEL"] ?? "openai/gpt-oss-20b";
+    return (
+      process.env["GROQ_LARGE_MODEL"] ?? process.env["GROQ_MODEL"] ?? "llama-3.3-70b-versatile"
+    );
   },
-  /** Fast tasks (Historian, Configuration) */
+  /** Fast / Instant reasoning (Historian, Configuration) */
   get FAST(): string {
-    return process.env["GROQ_FAST_MODEL"] ?? process.env["GROQ_MODEL"] ?? "openai/gpt-oss-20b";
+    return process.env["GROQ_FAST_MODEL"] ?? process.env["GROQ_MODEL"] ?? "llama-3.1-8b-instant";
   },
 };
 
@@ -151,8 +154,13 @@ export class LLMClient {
 
         if (!res.ok) {
           const errBody = await res.text();
-          lastError = new Error(`Groq API error ${res.status}: ${errBody}`);
-          throw lastError;
+          const err = new Error(`Groq API error ${res.status}: ${errBody}`);
+          // Do not retry client errors that cannot be fixed by retrying (400, 401, 403, 404)
+          if ([400, 401, 403, 404].includes(res.status)) {
+            throw err;
+          }
+          lastError = err;
+          continue;
         }
 
         const json = (await res.json()) as any;
@@ -177,6 +185,16 @@ export class LLMClient {
           toolCalls: choice?.message?.tool_calls,
         };
       } catch (err: any) {
+        // Immediately propagate non-retryable auth/client errors without burning retries
+        if (
+          err?.message?.includes("Groq API error 400") ||
+          err?.message?.includes("Groq API error 401") ||
+          err?.message?.includes("Groq API error 403") ||
+          err?.message?.includes("Groq API error 404") ||
+          err?.message?.includes("GROQ_API_KEY is not set")
+        ) {
+          throw err;
+        }
         lastError = err;
         if (attempt < this.maxRetries - 1) {
           const waitMs = Math.min(2000 * 2 ** attempt, 8000);

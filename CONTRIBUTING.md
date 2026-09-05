@@ -7,9 +7,10 @@ Thank you for contributing to ARGUS! This guide explains how to extend the platf
 ## 1. Monorepo Structure & Dependency Rules
 
 ARGUS is managed with **pnpm workspaces** and **Turborepo**:
-* Base leaf package is `@argus/agent-core` (contains Zod schemas, canonical contracts). It must have zero internal package dependencies.
-* All inter-package imports must use workspace specifiers (`@argus/*`), never relative paths across package directories.
-* Strict TypeScript is enabled across all packages (`strict: true`, `noUncheckedIndexedAccess: true`, `exactOptionalPropertyTypes: true`).
+
+- Base leaf package is `@argus/agent-core` (contains Zod schemas, canonical contracts). It must have zero internal package dependencies.
+- All inter-package imports must use workspace specifiers (`@argus/*`), never relative paths across package directories.
+- Strict TypeScript is enabled across all packages (`strict: true`, `noUncheckedIndexedAccess: true`, `exactOptionalPropertyTypes: true`).
 
 ---
 
@@ -18,6 +19,7 @@ ARGUS is managed with **pnpm workspaces** and **Turborepo**:
 Configuration rules live in `rules/github-actions/` (for CI workflows) and `rules/docker/` (for Dockerfiles).
 
 ### Step 1: Create the Rule File
+
 ```typescript
 // rules/github-actions/cd006_example_rule.ts
 import type { DebtRule, ParsedConfigContext } from "@argus/config-engine";
@@ -39,9 +41,11 @@ export const CD006_ExampleRule: DebtRule = {
 ```
 
 ### Step 2: Export in `rules/index.ts`
+
 Add your new rule to `ALL_BUILT_IN_RULES` in `rules/index.ts`.
 
 ### Step 3: Write Unit Tests
+
 Add test cases in `packages/config-engine/test/` validating positive and negative match cases.
 
 ---
@@ -50,6 +54,7 @@ Add test cases in `packages/config-engine/test/` validating positive and negativ
 
 1. Define the tool input and output Zod schemas in `@argus/agent-core` or locally with strict types.
 2. Implement the `McpTool` interface:
+
 ```typescript
 import type { McpTool, ToolExecutionContext, McpToolResult } from "@argus/mcp-server";
 
@@ -62,9 +67,10 @@ export const MyNewTool: McpTool<InputType, OutputType> = {
   outputSchema: MyOutputSchema,
   async execute(input, context: ToolExecutionContext): Promise<McpToolResult<OutputType>> {
     // Implementation
-  }
+  },
 };
 ```
+
 3. Register the tool in `packages/mcp-server/` and wire into relevant agent tool arrays.
 
 ---
@@ -72,6 +78,7 @@ export const MyNewTool: McpTool<InputType, OutputType> = {
 ## 4. Implementing a Specialized Agent
 
 1. Create a package in `agents/<agent-name>/` implementing the `ArgusAgent` interface from `@argus/agent-core`:
+
 ```typescript
 import type { ArgusAgent, AgentEnvelope, AgentContext } from "@argus/agent-core";
 
@@ -86,6 +93,7 @@ export class MyAgent implements ArgusAgent {
   }
 }
 ```
+
 2. Register the agent in `apps/cli/src/commands/analyze.ts` and `packages/orchestrator`.
 
 ---
@@ -93,6 +101,7 @@ export class MyAgent implements ArgusAgent {
 ## 5. Pre-Commit Quality Checks
 
 Run the verification pipeline before submitting changes:
+
 ```bash
 # Build all packages
 pnpm build

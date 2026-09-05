@@ -1,4 +1,4 @@
-import type { DebtRule, ParsedConfigContext } from "@argus/config-engine";
+import type { DebtRule, ParsedConfigContext } from "@argus/agent-core";
 import type { DebtFinding } from "@argus/agent-core";
 
 const SECRET_PATTERNS = [
@@ -33,7 +33,8 @@ export const CD003_HardcodedSecrets: DebtRule = {
             file: context.filePath,
             line: index + 1,
             evidence: line.replace(/[a-zA-Z0-9]{8,}/g, "[REDACTED]"),
-            recommendation: "Move sensitive tokens and keys into GitHub Actions repository secrets (${{ secrets.SECRET_NAME }}).",
+            recommendation:
+              "Move sensitive tokens and keys into GitHub Actions repository secrets (${{ secrets.SECRET_NAME }}).",
           });
           break;
         }

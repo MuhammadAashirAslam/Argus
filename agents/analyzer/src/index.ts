@@ -1,5 +1,11 @@
 import { randomUUID } from "node:crypto";
-import type { ArgusAgent, AgentEnvelope, AgentContext, Finding, Hypothesis } from "@argus/agent-core";
+import type {
+  ArgusAgent,
+  AgentEnvelope,
+  AgentContext,
+  Finding,
+  Hypothesis,
+} from "@argus/agent-core";
 import { LLMClient, executeLLMWithTools, GROQ_MODELS, type LLMMessage } from "@argus/shared";
 import { RepoReadFileTool, RepoSearchTool } from "@argus/git";
 
@@ -10,7 +16,7 @@ export class AnalyzerAgent implements ArgusAgent {
 
   public async run(input: AgentEnvelope, context: AgentContext): Promise<AgentEnvelope> {
     context.logger.info(`[${this.role}] Starting analysis for run ${context.runId}`);
-    
+
     const payload = input.payload as any;
     const objective = payload?.objective ?? "unknown";
     const findings: Finding[] = payload?.findings ?? [];
@@ -32,9 +38,11 @@ You MUST respond with a JSON object in the exact format:
   ],
   "findings": [
     {
-      "id": "uuid-here",
-      "statement": "Inferred context",
-      "classification": "INFERENCE",
+      "title": "Brief title of the finding",
+      "description": "Detailed description of inferred context",
+      "epistemic": "INFERENCE",
+      "severity": "MEDIUM",
+      "confidence": 0.8,
       "evidenceIds": []
     }
   ],
@@ -45,13 +53,13 @@ Do not return any conversational text, ONLY the final JSON object when you are d
 
     const messages: LLMMessage[] = [
       { role: "system", content: systemPrompt },
-      { role: "user", content: `Objective: ${objective}\nFindings: ${JSON.stringify(findings, null, 2)}` },
+      {
+        role: "user",
+        content: `Objective: ${objective}\nFindings: ${JSON.stringify(findings, null, 2)}`,
+      },
     ];
 
-    const tools = [
-      RepoReadFileTool,
-      RepoSearchTool,
-    ];
+    const tools = [RepoReadFileTool, RepoSearchTool];
 
     try {
       const response = await executeLLMWithTools(messages, {
@@ -69,7 +77,7 @@ Do not return any conversational text, ONLY the final JSON object when you are d
       const content = response.content.trim();
       const jsonStart = content.indexOf("{");
       const jsonEnd = content.lastIndexOf("}");
-      
+
       let resPayload: any;
       try {
         if (jsonStart !== -1 && jsonEnd !== -1) {
@@ -92,6 +100,39 @@ Do not return any conversational text, ONLY the final JSON object when you are d
           findings: [],
           analysis_complete: true,
         };
+      }
+
+      if (!Array.isArray(resPayload.evidence)) {
+        resPayload.evidence = [];
+      }
+      if (response.capturedEvidence && response.capturedEvidence.length > 0) {
+        resPayload.evidence.push(...response.capturedEvidence);
+      }
+
+      // Collect all known evidence IDs from input findings and captured tool evidence
+      const knownEvidenceIds = [
+        ...findings.flatMap((f) => f.evidenceIds || []),
+        ...resPayload.evidence.map((e: any) => e.id),
+      ];
+
+      if (knownEvidenceIds.length > 0) {
+        if (Array.isArray(resPayload.findings)) {
+          for (const finding of resPayload.findings) {
+            if (!Array.isArray(finding.evidenceIds) || finding.evidenceIds.length === 0) {
+              finding.evidenceIds = [knownEvidenceIds[0]];
+            }
+          }
+        }
+        if (Array.isArray(resPayload.hypotheses)) {
+          for (const hyp of resPayload.hypotheses) {
+            if (
+              !Array.isArray(hyp.supportingEvidenceIds) ||
+              hyp.supportingEvidenceIds.length === 0
+            ) {
+              hyp.supportingEvidenceIds = [knownEvidenceIds[0]];
+            }
+          }
+        }
       }
 
       return {

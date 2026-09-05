@@ -11,6 +11,8 @@ export interface VerificationPipelineOptions {
   runStaticAnalysis?: boolean;
   runLint?: boolean;
   runTests?: boolean;
+  syntaxCheckCommand?: string;
+  staticAnalysisCommand?: string;
   testCommand?: string;
   lintCommand?: string;
   useSandbox?: boolean;

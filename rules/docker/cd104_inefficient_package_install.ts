@@ -1,4 +1,4 @@
-import type { DebtRule, ParsedConfigContext } from "@argus/config-engine";
+import type { DebtRule, ParsedConfigContext } from "@argus/agent-core";
 import type { DebtFinding } from "@argus/agent-core";
 
 export const CD104_InefficientPackageInstallation: DebtRule = {
@@ -23,12 +23,17 @@ export const CD104_InefficientPackageInstallation: DebtRule = {
           file: context.filePath,
           line: index + 1,
           evidence: trimmed,
-          recommendation: "Clean up apt cache in the same RUN layer: 'apt-get install -y <packages> && rm -rf /var/lib/apt/lists/*'.",
+          recommendation:
+            "Clean up apt cache in the same RUN layer: 'apt-get install -y <packages> && rm -rf /var/lib/apt/lists/*'.",
         });
       }
 
       // apk add without --no-cache
-      if (/apk\s+add/i.test(trimmed) && !trimmed.includes("--no-cache") && !trimmed.includes("/var/cache/apk")) {
+      if (
+        /apk\s+add/i.test(trimmed) &&
+        !trimmed.includes("--no-cache") &&
+        !trimmed.includes("/var/cache/apk")
+      ) {
         findings.push({
           ruleId: "CD104",
           title: "Inefficient Package Installation",
@@ -36,7 +41,8 @@ export const CD104_InefficientPackageInstallation: DebtRule = {
           file: context.filePath,
           line: index + 1,
           evidence: trimmed,
-          recommendation: "Use '--no-cache' with apk add to prevent storing index cache in the container layer.",
+          recommendation:
+            "Use '--no-cache' with apk add to prevent storing index cache in the container layer.",
         });
       }
     });

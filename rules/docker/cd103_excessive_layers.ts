@@ -1,4 +1,4 @@
-import type { DebtRule, ParsedConfigContext } from "@argus/config-engine";
+import type { DebtRule, ParsedConfigContext } from "@argus/agent-core";
 import type { DebtFinding } from "@argus/agent-core";
 
 const MAX_RECOMMENDED_RUN_LAYERS = 8;
@@ -21,7 +21,8 @@ export const CD103_ExcessiveImageLayers: DebtRule = {
         severity: "low",
         file: context.filePath,
         evidence: `Dockerfile contains ${runInstructions.length} individual RUN instructions (threshold: ${MAX_RECOMMENDED_RUN_LAYERS})`,
-        recommendation: "Combine consecutive RUN commands using '&&' into single layers and clean up temporary cache files to reduce overall container image size.",
+        recommendation:
+          "Combine consecutive RUN commands using '&&' into single layers and clean up temporary cache files to reduce overall container image size.",
       });
     }
 

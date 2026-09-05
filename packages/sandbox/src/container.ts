@@ -1,11 +1,11 @@
-import { exec } from "node:child_process";
+import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 export interface SandboxCommandResult {
   passed: boolean;
@@ -29,7 +29,7 @@ export interface SandboxContainerOptions {
 export async function resolveDockerPath(explicitPath?: string): Promise<string | null> {
   if (explicitPath) {
     try {
-      await execAsync(`"${explicitPath}" --version`);
+      await execFileAsync(explicitPath, ["--version"]);
       return explicitPath;
     } catch {
       return null;
@@ -38,7 +38,7 @@ export async function resolveDockerPath(explicitPath?: string): Promise<string |
 
   // Try standard PATH first
   try {
-    await execAsync("docker --version");
+    await execFileAsync("docker", ["--version"]);
     return "docker";
   } catch {
     // Check known Windows paths
@@ -57,7 +57,7 @@ export async function resolveDockerPath(explicitPath?: string): Promise<string |
 
     for (const candidate of candidates) {
       try {
-        await execAsync(`"${candidate}" --version`);
+        await execFileAsync(candidate, ["--version"]);
         return candidate;
       } catch {
         continue;
@@ -71,7 +71,10 @@ export async function resolveDockerPath(explicitPath?: string): Promise<string |
 /**
  * Returns an environment object that includes the directory of the docker binary in PATH.
  */
-function getDockerEnv(dockerBin: string, customEnv?: Record<string, string>): Record<string, string> {
+function getDockerEnv(
+  dockerBin: string,
+  customEnv?: Record<string, string>,
+): Record<string, string> {
   const env = { ...process.env, ...customEnv };
   if (path.isAbsolute(dockerBin)) {
     const dockerDir = path.dirname(dockerBin);
@@ -96,7 +99,7 @@ export async function isDockerAvailable(customDockerPath?: string): Promise<bool
 
   try {
     const env = getDockerEnv(docker);
-    await execAsync(`"${docker}" ps -q`, { timeout: 5000, env });
+    await execFileAsync(docker, ["ps", "-q"], { timeout: 5000, env });
     return true;
   } catch {
     return false;
@@ -131,7 +134,9 @@ export class SandboxContainer {
    * Initializes and starts a fresh container.
    */
   public async initialize(): Promise<string> {
-    const resolvedDocker = await resolveDockerPath(this.dockerBin !== "docker" ? this.dockerBin : undefined);
+    const resolvedDocker = await resolveDockerPath(
+      this.dockerBin !== "docker" ? this.dockerBin : undefined,
+    );
     if (!resolvedDocker) {
       throw new Error("Docker is not installed or not found in system paths.");
     }
@@ -143,14 +148,28 @@ export class SandboxContainer {
       throw new Error("Docker daemon is not running or not accessible.");
     }
 
-    // Create container in detached mode with keepalive
-    const envFlags = Object.entries(this.envVars)
-      .map(([k, v]) => `-e "${k}=${v.replace(/"/g, '\\"')}"`)
-      .join(" ");
+    // Create container in detached mode with resource limits (§19, §32)
+    const runArgs = [
+      "run",
+      "-d",
+      "--name",
+      this.containerName,
+      "--memory=2g",
+      "--cpus=2",
+      "-w",
+      "/workspace",
+    ];
+
+    for (const [k, v] of Object.entries(this.envVars)) {
+      runArgs.push("-e", `${k}=${v}`);
+    }
+    runArgs.push(this.image, "tail", "-f", "/dev/null");
 
     const env = getDockerEnv(this.dockerBin);
-    const createCmd = `"${this.dockerBin}" run -d --name ${this.containerName} ${envFlags} -w /workspace ${this.image} tail -f /dev/null`;
-    const { stdout: cid } = await execAsync(createCmd, { timeout: this.timeoutMs, env });
+    const { stdout: cid } = await execFileAsync(this.dockerBin, runArgs, {
+      timeout: this.timeoutMs,
+      env,
+    });
     this.containerId = cid.trim();
 
     // Copy workspace contents to container
@@ -167,12 +186,18 @@ export class SandboxContainer {
 
     const env = getDockerEnv(this.dockerBin);
     const srcPath = path.resolve(this.workspacePath);
-    const cpCmd = `"${this.dockerBin}" cp "${srcPath}/." ${this.containerName}:/workspace/`;
-    await execAsync(cpCmd, { timeout: this.timeoutMs, env });
+    await execFileAsync(
+      this.dockerBin,
+      ["cp", `${srcPath}/.`, `${this.containerName}:/workspace/`],
+      {
+        timeout: this.timeoutMs,
+        env,
+      },
+    );
   }
 
   /**
-   * Executes a shell command inside the container.
+   * Executes a shell command inside the container safely without host shell expansion.
    */
   public async executeCommand(command: string, timeoutMs?: number): Promise<SandboxCommandResult> {
     if (!this.containerName) {
@@ -184,14 +209,15 @@ export class SandboxContainer {
     const env = getDockerEnv(this.dockerBin);
 
     try {
-      const escapedCmd = command.replace(/"/g, '\\"');
-      const execCmd = `"${this.dockerBin}" exec ${this.containerName} sh -c "${escapedCmd}"`;
-
-      const { stdout, stderr } = await execAsync(execCmd, {
-        timeout,
-        maxBuffer: 10 * 1024 * 1024,
-        env,
-      });
+      const { stdout, stderr } = await execFileAsync(
+        this.dockerBin,
+        ["exec", this.containerName, "sh", "-c", command],
+        {
+          timeout,
+          maxBuffer: 10 * 1024 * 1024,
+          env,
+        },
+      );
 
       return {
         passed: true,
@@ -229,7 +255,11 @@ export class SandboxContainer {
     const tmpDiffPath = path.join(os.tmpdir(), `patch-${randomUUID()}.diff`);
     try {
       await fs.writeFile(tmpDiffPath, diff, "utf-8");
-      await execAsync(`"${this.dockerBin}" cp "${tmpDiffPath}" ${this.containerName}:/tmp/candidate.patch`, { env });
+      await execFileAsync(
+        this.dockerBin,
+        ["cp", tmpDiffPath, `${this.containerName}:/tmp/candidate.patch`],
+        { env },
+      );
 
       const patchRes = await this.executeCommand(
         "if command -v git >/dev/null 2>&1; then git apply /tmp/candidate.patch; elif command -v patch >/dev/null 2>&1; then patch -p1 < /tmp/candidate.patch; else exit 1; fi",
@@ -248,7 +278,10 @@ export class SandboxContainer {
     if (this.containerName) {
       const env = getDockerEnv(this.dockerBin);
       try {
-        await execAsync(`"${this.dockerBin}" rm -f ${this.containerName}`, { timeout: 10000, env });
+        await execFileAsync(this.dockerBin, ["rm", "-f", this.containerName], {
+          timeout: 10000,
+          env,
+        });
       } catch {
         // Ignore removal error
       }

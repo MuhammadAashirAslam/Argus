@@ -35,5 +35,6 @@ Thumbs.db
 
 # ARGUS Run artifacts & sandboxes
 .sandbox/
+.argus/
 trajectories/
 *.log

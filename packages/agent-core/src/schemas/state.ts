@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { FindingSchema } from "./finding.js";
+import { EvidenceSchema } from "./evidence.js";
 import { VerificationResultSchema } from "./verification.js";
 
 export const HypothesisSchema = z.object({
@@ -50,6 +51,7 @@ export const RunStateSchema = z.object({
   pullRequest: z.number().int().positive().optional(),
   objective: z.string().min(1),
   relevantFiles: z.array(z.string()).default([]),
+  evidence: z.array(EvidenceSchema).default([]),
   findings: z.array(FindingSchema).default([]),
   hypotheses: z.array(HypothesisSchema).default([]),
   proposedChanges: z.array(ProposedChangeSchema).default([]),

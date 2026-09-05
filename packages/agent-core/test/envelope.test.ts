@@ -1,8 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  AgentEnvelopeSchema,
-  validateAgentEnvelope,
-} from "../src/schemas/envelope.js";
+import { AgentEnvelopeSchema, validateAgentEnvelope } from "../src/schemas/envelope.js";
 
 describe("AgentEnvelopeSchema and validation", () => {
   it("validates well-formed AgentEnvelope", () => {

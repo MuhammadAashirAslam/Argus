@@ -1,13 +1,7 @@
 import { z } from "zod";
 import { EpistemicTypeSchema } from "./evidence.js";
 
-export const FindingSeveritySchema = z.enum([
-  "CRITICAL",
-  "HIGH",
-  "MEDIUM",
-  "LOW",
-  "INFORMATIONAL",
-]);
+export const FindingSeveritySchema = z.enum(["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFORMATIONAL"]);
 
 /**
  * Finding Schema (§10).
@@ -42,3 +36,23 @@ export const DebtFindingSchema = z.object({
 export type FindingSeverity = z.infer<typeof FindingSeveritySchema>;
 export type Finding = z.infer<typeof FindingSchema>;
 export type DebtFinding = z.infer<typeof DebtFindingSchema>;
+
+export type ConfigFileType = "GITHUB_ACTIONS" | "DOCKERFILE";
+
+export interface ParsedConfigContext {
+  filePath: string;
+  fileType: ConfigFileType;
+  rawContent: string;
+  parsedAst?: unknown;
+  lines: string[];
+}
+
+export interface DebtRule {
+  readonly id: string; // e.g. "CD001"
+  readonly title: string;
+  readonly fileType: ConfigFileType;
+  readonly severity: "low" | "medium" | "high";
+  readonly version: string; // e.g. "1.0.0"
+
+  evaluate(context: ParsedConfigContext): DebtFinding[];
+}

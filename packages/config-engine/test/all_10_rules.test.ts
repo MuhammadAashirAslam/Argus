@@ -6,14 +6,12 @@ import {
   CD003_HardcodedSecrets,
   CD004_DuplicatedWorkflowLogic,
   CD005_ExcessiveWorkflowComplexity,
-} from "../../../rules/github-actions/index.js";
-import {
   CD101_FloatingBaseImage,
   CD102_UnspecifiedBaseImageVersion,
   CD103_ExcessiveImageLayers,
   CD104_InefficientPackageInstallation,
   CD105_RootExecution,
-} from "../../../rules/docker/index.js";
+} from "@argus/rules";
 
 describe("All 10 PRD Configuration Debt Rules (§15)", () => {
   const engine = new ConfigDebtEngine();
@@ -41,7 +39,8 @@ describe("All 10 PRD Configuration Debt Rules (§15)", () => {
   });
 
   it("evaluates CD004 (Duplicated Workflow Logic)", () => {
-    const cmd = "run: echo 'very long command string that repeats across multiple steps in the workflow file'";
+    const cmd =
+      "run: echo 'very long command string that repeats across multiple steps in the workflow file'";
     const yaml = `steps:\n  - ${cmd}\n  - ${cmd}`;
     const findings = engine.analyzeFile(".github/workflows/ci.yml", yaml);
     expect(findings.some((f) => f.ruleId === "CD004")).toBe(true);

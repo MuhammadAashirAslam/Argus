@@ -1,4 +1,5 @@
 import type { AgentEvent } from "@argus/agent-core";
+import { TrajectoryLogger } from "@argus/trajectory";
 
 export function formatTrajectoryTimeline(events: AgentEvent[]): string {
   if (events.length === 0) {
@@ -14,4 +15,13 @@ export function formatTrajectoryTimeline(events: AgentEvent[]): string {
   }
 
   return lines.join("\n");
+}
+
+export async function runTrace(runId: string, baseDir: string = process.cwd()): Promise<string> {
+  try {
+    const events = await TrajectoryLogger.load(runId, baseDir);
+    return formatTrajectoryTimeline(events);
+  } catch (err: any) {
+    throw new Error(`Failed to load trajectory for run '${runId}': ${err?.message || String(err)}`);
+  }
 }

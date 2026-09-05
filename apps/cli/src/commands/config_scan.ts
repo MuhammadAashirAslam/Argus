@@ -38,7 +38,12 @@ async function findConfigFiles(dir: string): Promise<string[]> {
     const entries = await fs.readdir(dir, { withFileTypes: true });
     for (const entry of entries) {
       const fullPath = path.join(dir, entry.name);
-      if (entry.isDirectory() && entry.name !== "node_modules" && entry.name !== ".git" && entry.name !== "dist") {
+      if (
+        entry.isDirectory() &&
+        entry.name !== "node_modules" &&
+        entry.name !== ".git" &&
+        entry.name !== "dist"
+      ) {
         results.push(...(await findConfigFiles(fullPath)));
       } else if (entry.isFile()) {
         const name = entry.name.toLowerCase();

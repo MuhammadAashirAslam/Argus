@@ -21,16 +21,16 @@ ARGUS's central claim is that repository state, evidence, and verification resul
 
 ## 2. Package Ownership (PRD §18, §29)
 
-| Package / Domain | Owner | Scope |
-|---|---|---|
-| `packages/mcp-server/`, `packages/repository/`, `packages/git/` | Agent 1 | MCP server runtime, repo/Git read tools, tool versioning. Does **not** own GitHub write orchestration. |
-| `packages/config-engine/`, `rules/`, `tests/config/` | Agent 2 | Rule engine, parsers (GitHub Actions, Dockerfile), 10 debt rules, rule versioning & tests. |
-| `packages/agent-core/`, `packages/orchestrator/`, `agents/*` | Agent 3 | Shared agent lifecycle, state transitions, budget enforcement, handoff validation; agent-specific prompts and reasoning. |
-| `packages/verifier/`, `packages/sandbox/`, `tests/verifier/` | Agent 4 | Patch application, Docker sandbox, static analysis, lint, tests. |
-| `packages/github/`, `apps/github-action/`, `.github/` | Agent 5 | GitHub write operations, branch/PR creation, review generation, GitHub Actions. Consumes Agent 1's tool interfaces. |
-| `packages/trajectory/`, `apps/dashboard/`, `benchmarks/` | Agent 6 | Benchmark runner, baseline implementations (Baseline A/B), trial protocol, metrics, trajectory logger. |
-| `apps/cli/`, `docs/` | Agent 7 | CLI (`argus analyze`), developer and research documentation. |
-| Monorepo Root & Coordination | Integration Agent | Cross-package builds, CI pipeline, Turborepo boundary validation. |
+| Package / Domain                                                | Owner             | Scope                                                                                                                    |
+| --------------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `packages/mcp-server/`, `packages/repository/`, `packages/git/` | Agent 1           | MCP server runtime, repo/Git read tools, tool versioning. Does **not** own GitHub write orchestration.                   |
+| `packages/config-engine/`, `rules/`, `tests/config/`            | Agent 2           | Rule engine, parsers (GitHub Actions, Dockerfile), 10 debt rules, rule versioning & tests.                               |
+| `packages/agent-core/`, `packages/orchestrator/`, `agents/*`    | Agent 3           | Shared agent lifecycle, state transitions, budget enforcement, handoff validation; agent-specific prompts and reasoning. |
+| `packages/verifier/`, `packages/sandbox/`, `tests/verifier/`    | Agent 4           | Patch application, Docker sandbox, static analysis, lint, tests.                                                         |
+| `packages/github/`, `apps/github-action/`, `.github/`           | Agent 5           | GitHub write operations, branch/PR creation, review generation, GitHub Actions. Consumes Agent 1's tool interfaces.      |
+| `packages/trajectory/`, `apps/dashboard/`, `benchmarks/`        | Agent 6           | Benchmark runner, baseline implementations (Baseline A/B), trial protocol, metrics, trajectory logger.                   |
+| `apps/cli/`, `docs/`                                            | Agent 7           | CLI (`argus analyze`), developer and research documentation.                                                             |
+| Monorepo Root & Coordination                                    | Integration Agent | Cross-package builds, CI pipeline, Turborepo boundary validation.                                                        |
 
 If a task spans two packages, state so explicitly in `handoff.md` and tag both owners.
 
@@ -73,7 +73,7 @@ If a task spans two packages, state so explicitly in `handoff.md` and tag both o
 
 - **Specific Failure Classification**: Use the taxonomy in §25 (e.g., `UNSUPPORTED_REPOSITORY`, `SANDBOX_TIMEOUT`, `SCHEMA_VALIDATION_ERROR`). Avoid defaulting to generic categories.
 - **Explicit Error Envelopes**: Report failures via `AgentEnvelope.errors` (§8, §34). Never swallow errors or return success status on partial completions.
-- **Pre-Log Secret Redaction (§24)**: Redact API keys, tokens, and sensitive data *before* payloads enter the persisted trajectory log.
+- **Pre-Log Secret Redaction (§24)**: Redact API keys, tokens, and sensitive data _before_ payloads enter the persisted trajectory log.
 
 ---
 
@@ -93,6 +93,7 @@ Commit history is part of ARGUS's evidence trail. Treat it with the same rigor a
 ## 8. Available Workspace Skills
 
 Specialized workflow guides are located in `.agents/skills/`:
+
 - **[`zod-schema-validation`](file:///.agents/skills/zod-schema-validation/SKILL.md)**: Zod schemas, envelope boundaries, and safe parsing.
 - **[`vitest-verification`](file:///.agents/skills/vitest-verification/SKILL.md)**: Vitest suite setup and sandbox verification runner engine (§7.6, §35).
 - **[`typescript-eslint-quality`](file:///.agents/skills/typescript-eslint-quality/SKILL.md)**: Strict typing, ESLint rules, and Verification Agent static analysis stages (§21).

@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { LLMClient } from "../src/llm-client.js";
 
@@ -26,10 +27,17 @@ describe("LLMClient", () => {
   it("should throw if no API key is provided and none in env", async () => {
     const originalEnv = process.env["GROQ_API_KEY"];
     delete process.env["GROQ_API_KEY"];
-    const client = new LLMClient();
-    await expect(client.prompt("hello")).rejects.toThrow(/GROQ_API_KEY is not set/);
-    if (originalEnv) {
-      process.env["GROQ_API_KEY"] = originalEnv;
+    const readSpy = vi.spyOn(fs, "readFileSync").mockImplementation(() => {
+      throw new Error("ENOENT");
+    });
+    try {
+      const client = new LLMClient();
+      await expect(client.prompt("hello")).rejects.toThrow(/GROQ_API_KEY is not set/);
+    } finally {
+      readSpy.mockRestore();
+      if (originalEnv) {
+        process.env["GROQ_API_KEY"] = originalEnv;
+      }
     }
   });
 });

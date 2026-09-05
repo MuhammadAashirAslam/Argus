@@ -1,4 +1,4 @@
-import type { DebtRule, ParsedConfigContext } from "@argus/config-engine";
+import type { DebtRule, ParsedConfigContext } from "@argus/agent-core";
 import type { DebtFinding } from "@argus/agent-core";
 
 export const CD101_FloatingBaseImage: DebtRule = {
@@ -12,7 +12,9 @@ export const CD101_FloatingBaseImage: DebtRule = {
     const findings: DebtFinding[] = [];
 
     context.lines.forEach((line, index) => {
-      const match = line.match(/^FROM\s+(?:--platform=\S+\s+)?([^\s:]+)(?::([^\s@]+))?(?:@sha256:([a-f0-9]+))?/i);
+      const match = line.match(
+        /^FROM\s+(?:--platform=\S+\s+)?([^\s:]+)(?::([^\s@]+))?(?:@sha256:([a-f0-9]+))?/i,
+      );
       if (match) {
         const image = match[1] ?? "";
         const tag = match[2];

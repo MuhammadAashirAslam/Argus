@@ -1,4 +1,6 @@
+import { randomUUID } from "node:crypto";
 import type { McpTool, ToolExecutionContext } from "@argus/mcp-server";
+import type { Evidence, EvidenceType } from "@argus/agent-core";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import type { LLMClient, LLMMessage, LLMResponse } from "./llm-client.js";
 
@@ -10,7 +12,15 @@ export interface LLMToolAdapterOptions {
   maxIterations?: number;
 }
 
-const MAX_TOOL_OUTPUT_CHARS = 1200;
+const MAX_TOOL_OUTPUT_CHARS = 4000;
+
+function getEvidenceTypeForTool(toolName: string): EvidenceType {
+  if (toolName.startsWith("git.")) return "GIT_HISTORY";
+  if (toolName === "repo.read_file" || toolName === "repo.search") return "SOURCE_SNIPPET";
+  if (toolName.startsWith("ci.")) return "LOG_TRACE";
+  if (toolName.includes("config")) return "CONFIG_AUDIT";
+  return "LOG_TRACE";
+}
 
 export async function executeLLMWithTools(
   messages: LLMMessage[],
@@ -30,14 +40,21 @@ export async function executeLLMWithTools(
 
   const toolsMap = new Map(options.tools.map((t) => [t.name, t]));
 
+  const capturedEvidence: Evidence[] = [];
+
   while (iterations < maxIterations) {
     iterations++;
 
-    // Prune intermediate messages if conversation history grows too large for TPM limits
-    if (messages.length > 6) {
+    // Prune oldest intermediate tool rounds if conversation history grows too large
+    if (messages.length > 12) {
       const system = messages[0];
       const user = messages[1];
-      const recent = messages.slice(-3);
+      // Ensure we don't start recent slice with an orphaned 'tool' message
+      let sliceStart = messages.length - 6;
+      while (sliceStart > 2 && messages[sliceStart]?.role === "tool") {
+        sliceStart--;
+      }
+      const recent = messages.slice(sliceStart);
       messages = [system!, user!, ...recent];
     }
 
@@ -45,7 +62,8 @@ export async function executeLLMWithTools(
     if (isFinalIteration) {
       messages.push({
         role: "user",
-        content: "Please summarize your findings and return only the final JSON object now.",
+        content:
+          "Please summarize your findings and return only the final JSON object now. Include relevant evidenceIds from previous tool outputs.",
       });
     }
 
@@ -59,23 +77,27 @@ export async function executeLLMWithTools(
       // If Groq complains about tool_use_failed, fallback to requesting final JSON directly
       if (err.message?.includes("tool_use_failed")) {
         console.log(`    ↳ [${options.context.agentId}] Synthesizing final JSON response...`);
-        return options.client.chat(
+        const fallbackRes = await options.client.chat(
           [
             messages[0]!,
             messages[1]!,
             {
               role: "user",
-              content: "Please output the final JSON object directly based on your investigation so far.",
+              content:
+                "Please output the final JSON object directly based on your investigation so far.",
             },
           ],
           { model: options.model },
         );
+        fallbackRes.capturedEvidence = capturedEvidence;
+        return fallbackRes;
       }
       throw err;
     }
 
     if (!res.toolCalls || res.toolCalls.length === 0 || isFinalIteration) {
       // The LLM has returned its final response
+      res.capturedEvidence = capturedEvidence;
       return res;
     }
 
@@ -96,7 +118,9 @@ export async function executeLLMWithTools(
         toolArgs = {};
       }
 
-      console.log(`    ↳ [${options.context.agentId}] Tool: ${toolName}(${JSON.stringify(toolArgs).slice(0, 60)})`);
+      console.log(
+        `    ↳ [${options.context.agentId}] Tool: ${toolName}(${JSON.stringify(toolArgs).slice(0, 60)})`,
+      );
 
       const tool = toolsMap.get(toolName);
       if (!tool) {
@@ -109,9 +133,47 @@ export async function executeLLMWithTools(
         continue;
       }
 
+      // Validate tool arguments against schema (§15)
+      const parseResult = tool.inputSchema.safeParse(toolArgs);
+      if (!parseResult.success) {
+        messages.push({
+          role: "tool",
+          name: toolName,
+          tool_call_id: toolCall.id,
+          content: JSON.stringify({
+            error: "Tool argument schema validation failed",
+            issues: parseResult.error.issues,
+          }),
+        });
+        continue;
+      }
+      const validatedArgs = parseResult.data;
+
       try {
-        const result = await tool.execute(toolArgs, options.context);
-        let serialized = JSON.stringify(result);
+        const result = await tool.execute(validatedArgs, options.context);
+        const evidenceId = randomUUID();
+        const evidence: Evidence = {
+          id: evidenceId,
+          type: getEvidenceTypeForTool(toolName),
+          epistemic: "FACT",
+          location: (validatedArgs as any)?.filePath
+            ? {
+                filePath: String((validatedArgs as any).filePath),
+                startLine: Number((validatedArgs as any).startLine ?? 1),
+                endLine: Number((validatedArgs as any).endLine ?? 1),
+              }
+            : undefined,
+          payload: {
+            tool: toolName,
+            args: validatedArgs,
+            data: result.data ?? {},
+          },
+          capturedAt: new Date().toISOString(),
+          toolSource: `mcp:${toolName}`,
+        };
+        capturedEvidence.push(evidence);
+
+        let serialized = JSON.stringify({ evidenceId, ...result });
         if (serialized.length > MAX_TOOL_OUTPUT_CHARS) {
           serialized = serialized.slice(0, MAX_TOOL_OUTPUT_CHARS) + " ... [truncated]";
         }
@@ -133,15 +195,18 @@ export async function executeLLMWithTools(
   }
 
   // Graceful fallback if reached
-  return options.client.chat(
+  const finalRes = await options.client.chat(
     [
       messages[0]!,
       messages[1]!,
       {
         role: "user",
-        content: "Please summarize your findings and produce the final JSON response now.",
+        content:
+          "Please summarize your findings and produce the final JSON response now. Include relevant evidenceIds.",
       },
     ],
     { model: options.model },
   );
+  finalRes.capturedEvidence = capturedEvidence;
+  return finalRes;
 }

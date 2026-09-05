@@ -7,7 +7,9 @@ description: >-
 # Changesets Versioning & Tool Tracking Skill
 
 ## Purpose & PRD Alignment (§17, §31)
+
 In ARGUS:
+
 - Every MCP tool has a distinct, traceable semver version string (§17).
 - Every experiment run must record the exact version IDs of tools and packages used (§31) to guarantee reproducibility.
 - Package dependencies in the monorepo must be versioned deterministically without manual errors.

@@ -1,9 +1,9 @@
 import { z } from "zod";
-import { exec } from "node:child_process";
+import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { McpTool, ToolExecutionContext, McpToolResult } from "@argus/mcp-server";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 export const GIT_TOOL_VERSION = "1.0.0";
 
@@ -16,7 +16,10 @@ export const GitStatusOutputSchema = z.object({
   untrackedFiles: z.array(z.string()),
 });
 
-export const GitStatusTool: McpTool<z.infer<typeof GitStatusInputSchema>, z.infer<typeof GitStatusOutputSchema>> = {
+export const GitStatusTool: McpTool<
+  z.infer<typeof GitStatusInputSchema>,
+  z.infer<typeof GitStatusOutputSchema>
+> = {
   name: "git.status",
   version: GIT_TOOL_VERSION,
   description: "Get the current git working tree status and branch",
@@ -24,10 +27,15 @@ export const GitStatusTool: McpTool<z.infer<typeof GitStatusInputSchema>, z.infe
   inputSchema: GitStatusInputSchema,
   outputSchema: GitStatusOutputSchema,
 
-  async execute(_input, context: ToolExecutionContext): Promise<McpToolResult<z.infer<typeof GitStatusOutputSchema>>> {
+  async execute(
+    _input,
+    context: ToolExecutionContext,
+  ): Promise<McpToolResult<z.infer<typeof GitStatusOutputSchema>>> {
     const start = Date.now();
     try {
-      const { stdout } = await execAsync("git status --porcelain=v1 -b", { cwd: context.workspacePath });
+      const { stdout } = await execFileAsync("git", ["status", "--porcelain=v1", "-b"], {
+        cwd: context.workspacePath,
+      });
       const lines = stdout.split("\n").filter(Boolean);
       const branchLine = lines[0] ?? "";
       const branch = branchLine.replace(/^##\s*/, "").split("...")[0] ?? "unknown";
@@ -80,7 +88,10 @@ export const GitLogOutputSchema = z.object({
   ),
 });
 
-export const GitLogTool: McpTool<z.infer<typeof GitLogInputSchema>, z.infer<typeof GitLogOutputSchema>> = {
+export const GitLogTool: McpTool<
+  z.infer<typeof GitLogInputSchema>,
+  z.infer<typeof GitLogOutputSchema>
+> = {
   name: "git.log",
   version: GIT_TOOL_VERSION,
   description: "Inspect commit history for repository or a specific file",
@@ -88,12 +99,17 @@ export const GitLogTool: McpTool<z.infer<typeof GitLogInputSchema>, z.infer<type
   inputSchema: GitLogInputSchema,
   outputSchema: GitLogOutputSchema,
 
-  async execute(input, context: ToolExecutionContext): Promise<McpToolResult<z.infer<typeof GitLogOutputSchema>>> {
+  async execute(
+    input,
+    context: ToolExecutionContext,
+  ): Promise<McpToolResult<z.infer<typeof GitLogOutputSchema>>> {
     const start = Date.now();
     try {
-      const fileArg = input.filePath ? ` -- "${input.filePath}"` : "";
-      const cmd = `git log -n ${input.maxCount} --format="%H|%an|%ad|%s" --date=iso${fileArg}`;
-      const { stdout } = await execAsync(cmd, { cwd: context.workspacePath });
+      const gitArgs = ["log", "-n", String(input.maxCount), "--format=%H|%an|%ad|%s", "--date=iso"];
+      if (input.filePath) {
+        gitArgs.push("--", input.filePath);
+      }
+      const { stdout } = await execFileAsync("git", gitArgs, { cwd: context.workspacePath });
 
       const commits = stdout
         .split("\n")

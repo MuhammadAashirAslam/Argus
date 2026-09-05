@@ -4,7 +4,8 @@ import type { AgentEvent } from "@argus/agent-core";
 
 describe("TrajectoryLogger & Secret Redaction", () => {
   it("redacts sensitive tokens, api keys, and passwords", () => {
-    const rawText = "Connecting with token: ghp_1234567890abcdefghijklmnopqrstuvwxyz and Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9";
+    const rawText =
+      "Connecting with token: ghp_1234567890abcdefghijklmnopqrstuvwxyz and Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9";
     const redacted = redactSecrets(rawText);
 
     expect(redacted).not.toContain("ghp_1234567890abcdefghijklmnopqrstuvwxyz");

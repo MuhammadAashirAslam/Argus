@@ -10,7 +10,10 @@ export function buildSystemPrompt(role: string, customInstructions: string = "")
   return base;
 }
 
-export function buildUserPrompt(envelope: AgentEnvelope, evidence: Record<string, unknown> = {}): string {
+export function buildUserPrompt(
+  envelope: AgentEnvelope,
+  evidence: Record<string, unknown> = {},
+): string {
   return JSON.stringify(
     {
       task: envelope.payload,

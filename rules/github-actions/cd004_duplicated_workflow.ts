@@ -1,4 +1,4 @@
-import type { DebtRule, ParsedConfigContext } from "@argus/config-engine";
+import type { DebtRule, ParsedConfigContext } from "@argus/agent-core";
 import type { DebtFinding } from "@argus/agent-core";
 
 export const CD004_DuplicatedWorkflowLogic: DebtRule = {
@@ -26,7 +26,8 @@ export const CD004_DuplicatedWorkflowLogic: DebtRule = {
               file: context.filePath,
               line: index + 1,
               evidence: `Duplicate of step at line ${firstSeen}: ${cmd}`,
-              recommendation: "Extract repeated workflow command sequences into a reusable composite action or shared script.",
+              recommendation:
+                "Extract repeated workflow command sequences into a reusable composite action or shared script.",
             });
           } else {
             runBlocks.set(cmd, index + 1);

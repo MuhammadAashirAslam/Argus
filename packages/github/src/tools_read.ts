@@ -1,11 +1,11 @@
 import { z } from "zod";
 import type { McpTool, ToolExecutionContext, McpToolResult } from "@argus/mcp-server";
-import { 
-  GITHUB_TOOL_VERSION, 
-  GitHubPullRequestSchema, 
+import {
+  GITHUB_TOOL_VERSION,
+  GitHubPullRequestSchema,
   GitHubIssueSchema,
   GitHubCommentSchema,
-  GitHubFileSchema
+  GitHubFileSchema,
 } from "./types.js";
 
 async function githubFetch(path: string): Promise<any> {
@@ -30,7 +30,10 @@ export const GetPullRequestInputSchema = z.object({
   pullNumber: z.number().int().positive(),
 });
 
-export const GetPullRequestTool: McpTool<z.infer<typeof GetPullRequestInputSchema>, z.infer<typeof GitHubPullRequestSchema>> = {
+export const GetPullRequestTool: McpTool<
+  z.infer<typeof GetPullRequestInputSchema>,
+  z.infer<typeof GitHubPullRequestSchema>
+> = {
   name: "github.get_pull_request",
   version: GITHUB_TOOL_VERSION,
   description: "Fetch pull request metadata, branches, and description",
@@ -38,10 +41,15 @@ export const GetPullRequestTool: McpTool<z.infer<typeof GetPullRequestInputSchem
   inputSchema: GetPullRequestInputSchema,
   outputSchema: GitHubPullRequestSchema,
 
-  async execute(input, _context: ToolExecutionContext): Promise<McpToolResult<z.infer<typeof GitHubPullRequestSchema>>> {
+  async execute(
+    input,
+    _context: ToolExecutionContext,
+  ): Promise<McpToolResult<z.infer<typeof GitHubPullRequestSchema>>> {
     const start = Date.now();
     try {
-      const json = await githubFetch(`/repos/${input.owner}/${input.repo}/pulls/${input.pullNumber}`);
+      const json = await githubFetch(
+        `/repos/${input.owner}/${input.repo}/pulls/${input.pullNumber}`,
+      );
       const prData = {
         number: json.number,
         title: json.title,
@@ -55,7 +63,11 @@ export const GetPullRequestTool: McpTool<z.infer<typeof GetPullRequestInputSchem
 
       return { success: true, data: prData, durationMs: Date.now() - start };
     } catch (err: any) {
-      return { success: false, error: { code: "GITHUB_FETCH_FAILED", message: err?.message || String(err) }, durationMs: Date.now() - start };
+      return {
+        success: false,
+        error: { code: "GITHUB_FETCH_FAILED", message: err?.message || String(err) },
+        durationMs: Date.now() - start,
+      };
     }
   },
 };
@@ -67,7 +79,10 @@ export const GetIssuesInputSchema = z.object({
   state: z.enum(["open", "closed", "all"]).default("open"),
 });
 
-export const GetIssuesTool: McpTool<z.infer<typeof GetIssuesInputSchema>, Array<z.infer<typeof GitHubIssueSchema>>> = {
+export const GetIssuesTool: McpTool<
+  z.infer<typeof GetIssuesInputSchema>,
+  Array<z.infer<typeof GitHubIssueSchema>>
+> = {
   name: "github.get_issues",
   version: GITHUB_TOOL_VERSION,
   description: "List issues in a repository",
@@ -75,10 +90,15 @@ export const GetIssuesTool: McpTool<z.infer<typeof GetIssuesInputSchema>, Array<
   inputSchema: GetIssuesInputSchema,
   outputSchema: z.array(GitHubIssueSchema),
 
-  async execute(input, _context: ToolExecutionContext): Promise<McpToolResult<Array<z.infer<typeof GitHubIssueSchema>>>> {
+  async execute(
+    input,
+    _context: ToolExecutionContext,
+  ): Promise<McpToolResult<Array<z.infer<typeof GitHubIssueSchema>>>> {
     const start = Date.now();
     try {
-      const json = await githubFetch(`/repos/${input.owner}/${input.repo}/issues?state=${input.state}`);
+      const json = await githubFetch(
+        `/repos/${input.owner}/${input.repo}/issues?state=${input.state}`,
+      );
       const issues = json.map((issue: any) => ({
         number: issue.number,
         title: issue.title,
@@ -90,7 +110,11 @@ export const GetIssuesTool: McpTool<z.infer<typeof GetIssuesInputSchema>, Array<
 
       return { success: true, data: issues, durationMs: Date.now() - start };
     } catch (err: any) {
-      return { success: false, error: { code: "GITHUB_FETCH_FAILED", message: err?.message || String(err) }, durationMs: Date.now() - start };
+      return {
+        success: false,
+        error: { code: "GITHUB_FETCH_FAILED", message: err?.message || String(err) },
+        durationMs: Date.now() - start,
+      };
     }
   },
 };
@@ -102,7 +126,10 @@ export const GetPullRequestFilesInputSchema = z.object({
   pullNumber: z.number().int().positive(),
 });
 
-export const GetPullRequestFilesTool: McpTool<z.infer<typeof GetPullRequestFilesInputSchema>, Array<z.infer<typeof GitHubFileSchema>>> = {
+export const GetPullRequestFilesTool: McpTool<
+  z.infer<typeof GetPullRequestFilesInputSchema>,
+  Array<z.infer<typeof GitHubFileSchema>>
+> = {
   name: "github.get_pull_request_files",
   version: GITHUB_TOOL_VERSION,
   description: "Get the files changed in a pull request",
@@ -110,10 +137,15 @@ export const GetPullRequestFilesTool: McpTool<z.infer<typeof GetPullRequestFiles
   inputSchema: GetPullRequestFilesInputSchema,
   outputSchema: z.array(GitHubFileSchema),
 
-  async execute(input, _context: ToolExecutionContext): Promise<McpToolResult<Array<z.infer<typeof GitHubFileSchema>>>> {
+  async execute(
+    input,
+    _context: ToolExecutionContext,
+  ): Promise<McpToolResult<Array<z.infer<typeof GitHubFileSchema>>>> {
     const start = Date.now();
     try {
-      const json = await githubFetch(`/repos/${input.owner}/${input.repo}/pulls/${input.pullNumber}/files`);
+      const json = await githubFetch(
+        `/repos/${input.owner}/${input.repo}/pulls/${input.pullNumber}/files`,
+      );
       const files = json.map((f: any) => ({
         filename: f.filename,
         status: f.status,
@@ -124,7 +156,11 @@ export const GetPullRequestFilesTool: McpTool<z.infer<typeof GetPullRequestFiles
 
       return { success: true, data: files, durationMs: Date.now() - start };
     } catch (err: any) {
-      return { success: false, error: { code: "GITHUB_FETCH_FAILED", message: err?.message || String(err) }, durationMs: Date.now() - start };
+      return {
+        success: false,
+        error: { code: "GITHUB_FETCH_FAILED", message: err?.message || String(err) },
+        durationMs: Date.now() - start,
+      };
     }
   },
 };
@@ -136,7 +172,10 @@ export const GetCommentsInputSchema = z.object({
   issueNumber: z.number().int().positive(),
 });
 
-export const GetCommentsTool: McpTool<z.infer<typeof GetCommentsInputSchema>, Array<z.infer<typeof GitHubCommentSchema>>> = {
+export const GetCommentsTool: McpTool<
+  z.infer<typeof GetCommentsInputSchema>,
+  Array<z.infer<typeof GitHubCommentSchema>>
+> = {
   name: "github.get_comments",
   version: GITHUB_TOOL_VERSION,
   description: "Get comments on an issue or pull request",
@@ -144,10 +183,15 @@ export const GetCommentsTool: McpTool<z.infer<typeof GetCommentsInputSchema>, Ar
   inputSchema: GetCommentsInputSchema,
   outputSchema: z.array(GitHubCommentSchema),
 
-  async execute(input, _context: ToolExecutionContext): Promise<McpToolResult<Array<z.infer<typeof GitHubCommentSchema>>>> {
+  async execute(
+    input,
+    _context: ToolExecutionContext,
+  ): Promise<McpToolResult<Array<z.infer<typeof GitHubCommentSchema>>>> {
     const start = Date.now();
     try {
-      const json = await githubFetch(`/repos/${input.owner}/${input.repo}/issues/${input.issueNumber}/comments`);
+      const json = await githubFetch(
+        `/repos/${input.owner}/${input.repo}/issues/${input.issueNumber}/comments`,
+      );
       const comments = json.map((c: any) => ({
         id: c.id,
         user: c.user?.login ?? "unknown",
@@ -157,7 +201,11 @@ export const GetCommentsTool: McpTool<z.infer<typeof GetCommentsInputSchema>, Ar
 
       return { success: true, data: comments, durationMs: Date.now() - start };
     } catch (err: any) {
-      return { success: false, error: { code: "GITHUB_FETCH_FAILED", message: err?.message || String(err) }, durationMs: Date.now() - start };
+      return {
+        success: false,
+        error: { code: "GITHUB_FETCH_FAILED", message: err?.message || String(err) },
+        durationMs: Date.now() - start,
+      };
     }
   },
 };

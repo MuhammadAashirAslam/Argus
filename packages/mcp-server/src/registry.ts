@@ -17,7 +17,12 @@ export class ToolRegistry {
     return this.tools.get(name);
   }
 
-  public listTools(): Array<{ name: string; version: string; description: string; permission: string }> {
+  public listTools(): Array<{
+    name: string;
+    version: string;
+    description: string;
+    permission: string;
+  }> {
     return Array.from(this.tools.values()).map((t) => ({
       name: t.name,
       version: t.version,

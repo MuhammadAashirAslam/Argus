@@ -7,6 +7,7 @@ description: >-
 # Turborepo Monorepo Architecture Skill
 
 ## Purpose & PRD Alignment (§33)
+
 ARGUS is organized as a multi-package TypeScript monorepo containing `packages/` (reusable libraries) and `agents/` (agent runtimes and orchestrator).
 This skill provides guidelines for dependency management, pipeline execution, and caching boundaries via Turborepo (`turbo.json`).
 
@@ -30,6 +31,7 @@ argus/
 ```
 
 ### Dependency Invariants
+
 - `agent-core` must **never** depend on other internal packages.
 - Cross-package imports must go through package names defined in `package.json` (e.g. `@argus/agent-core`), never deep relative paths (e.g., `../../packages/agent-core/src/...`).
 

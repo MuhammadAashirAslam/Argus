@@ -12,7 +12,9 @@ export async function runBaselineB(benchmarkCase: BenchmarkCase): Promise<Evalua
   const llm = new LLMClient();
 
   const fixture = BENCHMARK_FIXTURES[benchmarkCase.id];
-  const fileContext = fixture ? `File: ${fixture.path}\n\`\`\`\n${fixture.content}\n\`\`\`` : "No files available";
+  const fileContext = fixture
+    ? `File: ${fixture.path}\n\`\`\`\n${fixture.content}\n\`\`\``
+    : "No files available";
 
   const prompt = `You are evaluating a software repository issue with static file context (no dynamic tools).
 Issue: ${benchmarkCase.issueDescription}
@@ -31,31 +33,38 @@ Please output your diagnosis in JSON format:
   let tokenCount = 2800;
 
   try {
-    const res = await llm.promptJSON<{ diagnosis: string; proposedFix: string; confidence: number }>(
-      prompt,
-      "You are a single-turn code analysis agent.",
-      { model: GROQ_MODELS.FAST },
-    );
+    const res = await llm.promptJSON<{
+      diagnosis: string;
+      proposedFix: string;
+      confidence: number;
+    }>(prompt, "You are a single-turn code analysis agent.", { model: GROQ_MODELS.FAST });
     diagnosisText = res.diagnosis;
     tokenCount = llm.totalTokens || 2800;
   } catch {
     diagnosisText = "Static context analysis";
   }
 
-  const keywords = benchmarkCase.expectedDiagnosis.toLowerCase().split(/\s+/);
-  const matched = keywords.filter((kw) => kw.length > 3 && diagnosisText.toLowerCase().includes(kw));
-  const accuracy = Math.min(0.92, Math.max(0.60, matched.length / (keywords.length || 1)));
+  // Evaluate overlap with expected diagnosis keywords honestly without artificial clamps (§4.1 #59)
+  const keywords = benchmarkCase.expectedDiagnosis
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((kw) => kw.length > 3);
+  const matched = keywords.filter((kw) => diagnosisText.toLowerCase().includes(kw));
+  const accuracy = keywords.length > 0 ? matched.length / keywords.length : 0;
+  const falsePositiveRate = Math.max(0, 1 - accuracy);
+  const patchSuccessRate = accuracy >= 0.8 ? 1.0 : accuracy * 0.7;
+  const verificationPassed = accuracy >= 0.8;
 
   return {
     trialId: randomUUID(),
     caseId: benchmarkCase.id,
     configuration: "BASELINE_B",
     diagnosisAccuracy: accuracy,
-    falsePositiveRate: 0.12,
-    patchSuccessRate: 0.65,
-    verificationPassed: true,
+    falsePositiveRate,
+    patchSuccessRate,
+    verificationPassed,
     toolCallCount: 1,
-    durationMs: Date.now() - start,
+    durationMs: Math.max(1, Date.now() - start),
     tokenUsageEstimate: tokenCount,
     executedAt: new Date().toISOString(),
   };

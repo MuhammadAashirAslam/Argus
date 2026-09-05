@@ -1,12 +1,12 @@
 import { z } from "zod";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { exec } from "node:child_process";
+import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { McpTool, ToolExecutionContext, McpToolResult } from "@argus/mcp-server";
 import { GIT_TOOL_VERSION } from "./tools.js";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // --- repo.read_file ---
 export const RepoReadFileInputSchema = z.object({
@@ -17,7 +17,10 @@ export const RepoReadFileOutputSchema = z.object({
   size: z.number(),
 });
 
-export const RepoReadFileTool: McpTool<z.infer<typeof RepoReadFileInputSchema>, z.infer<typeof RepoReadFileOutputSchema>> = {
+export const RepoReadFileTool: McpTool<
+  z.infer<typeof RepoReadFileInputSchema>,
+  z.infer<typeof RepoReadFileOutputSchema>
+> = {
   name: "repo.read_file",
   version: GIT_TOOL_VERSION,
   description: "Read the contents of a file in the repository",
@@ -25,7 +28,10 @@ export const RepoReadFileTool: McpTool<z.infer<typeof RepoReadFileInputSchema>, 
   inputSchema: RepoReadFileInputSchema,
   outputSchema: RepoReadFileOutputSchema,
 
-  async execute(input, context: ToolExecutionContext): Promise<McpToolResult<z.infer<typeof RepoReadFileOutputSchema>>> {
+  async execute(
+    input,
+    context: ToolExecutionContext,
+  ): Promise<McpToolResult<z.infer<typeof RepoReadFileOutputSchema>>> {
     const start = Date.now();
     try {
       const fullPath = path.resolve(context.workspacePath, input.filePath);
@@ -33,12 +39,13 @@ export const RepoReadFileTool: McpTool<z.infer<typeof RepoReadFileInputSchema>, 
         throw new Error("Path traversal outside workspace is forbidden");
       }
       let content = await fs.readFile(fullPath, "utf-8");
+      const originalSize = content.length;
       if (content.length > 3000) {
         content = content.slice(0, 3000) + "\n... [truncated to 3000 characters]";
       }
       return {
         success: true,
-        data: { content, size: content.length },
+        data: { content, size: originalSize },
         durationMs: Date.now() - start,
       };
     } catch (err: any) {
@@ -59,7 +66,10 @@ export const RepoListFilesOutputSchema = z.object({
   files: z.array(z.string()),
 });
 
-export const RepoListFilesTool: McpTool<z.infer<typeof RepoListFilesInputSchema>, z.infer<typeof RepoListFilesOutputSchema>> = {
+export const RepoListFilesTool: McpTool<
+  z.infer<typeof RepoListFilesInputSchema>,
+  z.infer<typeof RepoListFilesOutputSchema>
+> = {
   name: "repo.list_files",
   version: GIT_TOOL_VERSION,
   description: "List all files in the repository (using git ls-files)",
@@ -67,20 +77,29 @@ export const RepoListFilesTool: McpTool<z.infer<typeof RepoListFilesInputSchema>
   inputSchema: RepoListFilesInputSchema,
   outputSchema: RepoListFilesOutputSchema,
 
-  async execute(input, context: ToolExecutionContext): Promise<McpToolResult<z.infer<typeof RepoListFilesOutputSchema>>> {
+  async execute(
+    input,
+    context: ToolExecutionContext,
+  ): Promise<McpToolResult<z.infer<typeof RepoListFilesOutputSchema>>> {
     const start = Date.now();
     try {
-      const dir = input.directory === "." ? "" : `"${input.directory}"`;
-      const { stdout } = await execAsync(`git ls-files ${dir}`, { cwd: context.workspacePath });
+      const args = ["ls-files"];
+      if (input.directory && input.directory !== ".") {
+        args.push(input.directory);
+      }
+      const { stdout } = await execFileAsync("git", args, { cwd: context.workspacePath });
       let files = stdout.split("\n").filter(Boolean);
       if (files.length > 40) {
-        const priority = files.filter(f => 
-          f.includes(".github") || 
-          f.includes("Dockerfile") || 
-          f.endsWith(".yml") || 
-          f.endsWith(".yaml") || 
-          f.endsWith(".json")
-        ).slice(0, 30);
+        const priority = files
+          .filter(
+            (f) =>
+              f.includes(".github") ||
+              f.includes("Dockerfile") ||
+              f.endsWith(".yml") ||
+              f.endsWith(".yaml") ||
+              f.endsWith(".json"),
+          )
+          .slice(0, 30);
         files = [...new Set([...priority, ...files.slice(0, 10)])];
       }
       return {
@@ -107,7 +126,10 @@ export const RepoSearchOutputSchema = z.object({
   results: z.array(z.string()), // Format: "file:line_number:content"
 });
 
-export const RepoSearchTool: McpTool<z.infer<typeof RepoSearchInputSchema>, z.infer<typeof RepoSearchOutputSchema>> = {
+export const RepoSearchTool: McpTool<
+  z.infer<typeof RepoSearchInputSchema>,
+  z.infer<typeof RepoSearchOutputSchema>
+> = {
   name: "repo.search",
   version: GIT_TOOL_VERSION,
   description: "Search the repository using git grep",
@@ -115,13 +137,16 @@ export const RepoSearchTool: McpTool<z.infer<typeof RepoSearchInputSchema>, z.in
   inputSchema: RepoSearchInputSchema,
   outputSchema: RepoSearchOutputSchema,
 
-  async execute(input, context: ToolExecutionContext): Promise<McpToolResult<z.infer<typeof RepoSearchOutputSchema>>> {
+  async execute(
+    input,
+    context: ToolExecutionContext,
+  ): Promise<McpToolResult<z.infer<typeof RepoSearchOutputSchema>>> {
     const start = Date.now();
     try {
       const regexFlag = input.regex ? "-E" : "-F";
-      const { stdout } = await execAsync(`git grep -n ${regexFlag} "${input.query.replace(/"/g, '\\"')}"`, { 
+      const { stdout } = await execFileAsync("git", ["grep", "-n", regexFlag, input.query], {
         cwd: context.workspacePath,
-      }).catch(err => {
+      }).catch((err) => {
         // git grep returns 1 if no matches found
         if (err.code === 1) return { stdout: "" };
         throw err;
@@ -151,7 +176,10 @@ export const RepoGetDiffOutputSchema = z.object({
   diff: z.string(),
 });
 
-export const RepoGetDiffTool: McpTool<z.infer<typeof RepoGetDiffInputSchema>, z.infer<typeof RepoGetDiffOutputSchema>> = {
+export const RepoGetDiffTool: McpTool<
+  z.infer<typeof RepoGetDiffInputSchema>,
+  z.infer<typeof RepoGetDiffOutputSchema>
+> = {
   name: "repo.get_diff",
   version: GIT_TOOL_VERSION,
   description: "Get the git diff between two points",
@@ -159,11 +187,17 @@ export const RepoGetDiffTool: McpTool<z.infer<typeof RepoGetDiffInputSchema>, z.
   inputSchema: RepoGetDiffInputSchema,
   outputSchema: RepoGetDiffOutputSchema,
 
-  async execute(input, context: ToolExecutionContext): Promise<McpToolResult<z.infer<typeof RepoGetDiffOutputSchema>>> {
+  async execute(
+    input,
+    context: ToolExecutionContext,
+  ): Promise<McpToolResult<z.infer<typeof RepoGetDiffOutputSchema>>> {
     const start = Date.now();
     try {
-      const target = input.target ? ` ${input.target}` : "";
-      const { stdout } = await execAsync(`git diff ${input.base}${target}`, { cwd: context.workspacePath });
+      const gitArgs = ["diff", input.base];
+      if (input.target) {
+        gitArgs.push(input.target);
+      }
+      const { stdout } = await execFileAsync("git", gitArgs, { cwd: context.workspacePath });
       return {
         success: true,
         data: { diff: stdout },
@@ -188,7 +222,10 @@ export const RepoGetDependenciesOutputSchema = z.object({
   devDependencies: z.record(z.string()),
 });
 
-export const RepoGetDependenciesTool: McpTool<z.infer<typeof RepoGetDependenciesInputSchema>, z.infer<typeof RepoGetDependenciesOutputSchema>> = {
+export const RepoGetDependenciesTool: McpTool<
+  z.infer<typeof RepoGetDependenciesInputSchema>,
+  z.infer<typeof RepoGetDependenciesOutputSchema>
+> = {
   name: "repo.get_dependencies",
   version: GIT_TOOL_VERSION,
   description: "Get dependencies from package.json",
@@ -196,10 +233,17 @@ export const RepoGetDependenciesTool: McpTool<z.infer<typeof RepoGetDependencies
   inputSchema: RepoGetDependenciesInputSchema,
   outputSchema: RepoGetDependenciesOutputSchema,
 
-  async execute(input, context: ToolExecutionContext): Promise<McpToolResult<z.infer<typeof RepoGetDependenciesOutputSchema>>> {
+  async execute(
+    input,
+    context: ToolExecutionContext,
+  ): Promise<McpToolResult<z.infer<typeof RepoGetDependenciesOutputSchema>>> {
     const start = Date.now();
     try {
-      const fullPath = path.resolve(context.workspacePath, input.packageJsonPath);
+      const resolvedWorkspace = path.resolve(context.workspacePath);
+      const fullPath = path.resolve(resolvedWorkspace, input.packageJsonPath);
+      if (!fullPath.startsWith(resolvedWorkspace)) {
+        throw new Error("Path traversal outside workspace is forbidden");
+      }
       const content = await fs.readFile(fullPath, "utf-8");
       const pkg = JSON.parse(content);
       return {
