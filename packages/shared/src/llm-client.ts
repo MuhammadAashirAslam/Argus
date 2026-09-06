@@ -46,13 +46,11 @@ export interface LLMResponse {
 export const GROQ_MODELS = {
   /** Large / Versatile reasoning (Investigator, Analyzer, Patch) */
   get LARGE(): string {
-    return (
-      process.env["GROQ_LARGE_MODEL"] ?? process.env["GROQ_MODEL"] ?? "llama-3.3-70b-versatile"
-    );
+    return process.env["GROQ_LARGE_MODEL"] ?? process.env["GROQ_MODEL"] ?? "openai/gpt-oss-20b";
   },
   /** Fast / Instant reasoning (Historian, Configuration) */
   get FAST(): string {
-    return process.env["GROQ_FAST_MODEL"] ?? process.env["GROQ_MODEL"] ?? "llama-3.1-8b-instant";
+    return process.env["GROQ_FAST_MODEL"] ?? process.env["GROQ_MODEL"] ?? "openai/gpt-oss-20b";
   },
 };
 
@@ -154,6 +152,19 @@ export class LLMClient {
 
         if (!res.ok) {
           const errBody = await res.text();
+          // If the requested model is not available on this Groq account/tier, gracefully fall back
+          if (
+            res.status === 404 &&
+            errBody.includes("model_not_found") &&
+            body.model !== "openai/gpt-oss-20b"
+          ) {
+            console.warn(
+              `[ARGUS] Model '${body.model}' not found on Groq API tier. Automatically falling back to 'openai/gpt-oss-20b'...`,
+            );
+            body.model = "openai/gpt-oss-20b";
+            continue;
+          }
+
           const err = new Error(`Groq API error ${res.status}: ${errBody}`);
           // Do not retry client errors that cannot be fixed by retrying (400, 401, 403, 404)
           if ([400, 401, 403, 404].includes(res.status)) {
