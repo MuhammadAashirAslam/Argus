@@ -1,4 +1,7 @@
 import { describe, it, expect } from "vitest";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { isDockerAvailable, resolveDockerPath, SandboxContainer } from "../src/container.js";
 
 describe("SandboxContainer", () => {
@@ -24,8 +27,9 @@ describe("SandboxContainer", () => {
       return;
     }
 
+    const workspacePath = await fs.mkdtemp(path.join(os.tmpdir(), "argus-sandbox-test-"));
     const container = new SandboxContainer({
-      workspacePath: process.cwd(),
+      workspacePath,
       timeoutMs: 30000,
     });
 
@@ -39,6 +43,7 @@ describe("SandboxContainer", () => {
       expect(res.stdout).toContain("argus-sandbox-ok");
     } finally {
       await container.destroy();
+      await fs.rm(workspacePath, { recursive: true, force: true });
     }
   }, 60000);
 });
