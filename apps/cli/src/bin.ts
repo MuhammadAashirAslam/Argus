@@ -3,6 +3,7 @@ import { runConfigScan } from "./commands/config_scan.js";
 import { runVerifyPatch } from "./commands/verify.js";
 import { runAnalyze } from "./commands/analyze.js";
 import { formatTrajectoryTimeline, runTrace } from "./commands/trace.js";
+import { runMcpServer } from "./commands/mcp.js";
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
@@ -21,6 +22,7 @@ Usage:
     [--pr <number>]                       Analyze a specific Pull Request
     [--objective <text>]                  Provide custom task or bug objective
   argus trace <runId> [path]              Format execution timeline for a persisted run
+  argus mcp [--workspace <path>]          Launch the official Model Context Protocol (MCP) stdio server
 
 Options:
   --help, -h                              Show this help menu
@@ -156,6 +158,14 @@ Options:
       console.error(`Error: ${err?.message || String(err)}`);
       process.exit(1);
     }
+    return;
+  }
+
+  // 5. Model Context Protocol (MCP) Server
+  if (command === "mcp") {
+    const wsIndex = args.indexOf("--workspace");
+    const workspace = wsIndex !== -1 && args[wsIndex + 1] ? args[wsIndex + 1] : process.cwd();
+    await runMcpServer(workspace);
     return;
   }
 

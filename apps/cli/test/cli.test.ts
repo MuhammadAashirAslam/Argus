@@ -121,4 +121,16 @@ describe("Developer CLI Commands (§23)", () => {
     expect(traceOutput).toContain("ARGUS EXECUTION TIMELINE");
     expect(traceOutput).toContain("INVESTIGATOR");
   });
+
+  it("builds standard tool registry with all tools (§13, §14)", async () => {
+    const { buildStandardToolRegistry } = await import("../src/commands/mcp.js");
+    const registry = buildStandardToolRegistry();
+    const tools = registry.listTools();
+    expect(tools.length).toBeGreaterThan(15);
+    expect(tools.map((t) => t.name)).toContain("git.status");
+    expect(tools.map((t) => t.name)).toContain("repo.read_file");
+    expect(tools.map((t) => t.name)).toContain("config.analyze_dockerfile");
+    expect(tools.map((t) => t.name)).toContain("github.get_pull_request");
+    expect(tools.map((t) => t.name)).toContain("ci.get_logs");
+  });
 });

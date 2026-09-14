@@ -110,6 +110,27 @@ pnpm argus analyze
 pnpm argus analyze --repo owner/repo --pr 42 --objective "Fix failing CI integration tests"
 ```
 
+### 4. Running the Model Context Protocol (MCP) Server
+
+Launch the standard Model Context Protocol (MCP) server over `stdio` to connect external tools (Claude Desktop, Cursor, Antigravity) to ARGUS:
+
+```bash
+pnpm argus mcp
+```
+
+Or configure it in your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "argus": {
+      "command": "node",
+      "args": ["d:/Argus/apps/cli/dist/bin.js", "mcp"]
+    }
+  }
+}
+```
+
 ---
 
 ## 📁 Repository Structure
@@ -157,4 +178,4 @@ pnpm test --filter @argus/benchmarks
 
 ## 📜 Development & Contribution Guidelines
 
-Please consult [AGENTS.md](./AGENTS.md) and [CONTRIBUTING.md](./CONTRIBUTING.md) for full architecture standards, package ownership, runtime schema validation rules, and git hygiene policies.
+Please consult [CONTRIBUTING.md](./CONTRIBUTING.md) and [AGENTS.md](./AGENTS.md) for full architecture standards, runtime schema validation rules, and contributor guidelines.
