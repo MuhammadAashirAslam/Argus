@@ -674,16 +674,17 @@ argus/
 
 ---
 
-# 29. Multi-Agent Development Strategy
+# 29. Modular System Architecture
 
-- **Agent 1 (MCP Infrastructure)**: `packages/mcp-server/`, `packages/github/`, `packages/git/`
-- **Agent 2 (Configuration Analysis)**: `packages/config-engine/`, `rules/`, `tests/config/`
-- **Agent 3 (Agent Runtime)**: `packages/agent-core/`, `packages/orchestrator/`, `agents/`
-- **Agent 4 (Verification)**: `packages/verifier/`, `tests/verifier/`
-- **Agent 5 (GitHub Integration)**: `apps/github-action/`, `packages/github/`
-- **Agent 6 (Observability & Baseline)**: `packages/trajectory/`, `apps/dashboard/`, `benchmarks/`
-- **Agent 7 (CLI & Research Documentation)**: `apps/cli/`, `docs/`
-- **Integration Agent**: Monorepo build, CI, and cross-package validation.
+The platform is structured into clear domain modules:
+
+- **MCP Infrastructure**: `packages/mcp-server/`, `packages/github/`, `packages/git/`
+- **Configuration Analysis**: `packages/config-engine/`, `rules/`, `tests/config/`
+- **Agent Runtime & Pipeline**: `packages/agent-core/`, `packages/orchestrator/`, `agents/`
+- **Verification & Sandboxing**: `packages/verifier/`, `packages/sandbox/`
+- **GitHub Integration**: `apps/github-action/`, `packages/github/`
+- **Observability & Benchmarks**: `packages/trajectory/`, `apps/dashboard/`, `benchmarks/`
+- **Developer CLI & Documentation**: `apps/cli/`, `docs/`
 
 ---
 
